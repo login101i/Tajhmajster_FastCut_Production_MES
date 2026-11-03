@@ -14,13 +14,15 @@ export function PercentBar({
     return <span className="muted">—</span>;
   }
 
-  const label = `${formatProductionPercentValue(parsed)}%`;
+  const precise = formatProductionPercentValue(parsed);
+  const label = `${precise}%`;
+  const shortLabel = `${parsed >= 10 ? parsed.toFixed(0) : precise}%`;
   const fill = resolveFillColor(parsed);
 
   return (
     <div className="percent-bar" title={label}>
       <div className="percent-bar__fill" style={{ width: `${parsed}%`, backgroundColor: fill }} />
-      <span className="percent-bar__label">{label}</span>
+      <span className="percent-bar__label">{shortLabel}</span>
     </div>
   );
 }

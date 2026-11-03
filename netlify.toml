@@ -3,6 +3,11 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Port is not a secret; omit from secrets scan (value often appears in docs/defaults).
+# Keep secret marking for: MYSQL_PASSWORD, MYSQL_HOST, MYSQL_USER, MYSQL_DATABASE, MONITOR_ACCESS_TOKEN
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "MYSQL_PORT"
+
 [dev]
   command = "npm run dev"
   targetPort = 5173
