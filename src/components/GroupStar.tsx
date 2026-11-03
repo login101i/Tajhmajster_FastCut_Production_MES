@@ -1,12 +1,12 @@
-/** Duża jasnoniebieska gwiazdka — zlecenie grupowe (IsGroupOrder = 1). */
+/** Ikona warstw / płyt — zlecenie grupowe (IsGroupOrder = 1). */
 export function GroupStar({ title = 'Zlecenie grupowe' }: { title?: string }) {
   return (
-    <span className="group-star" title={title} aria-label={title}>
+    <span className="group-star group-layers" title={title} aria-label={title}>
       <svg viewBox="0 0 24 24" aria-hidden>
-        <path
-          fill="currentColor"
-          d="M12 2.6l2.74 6.55 7.06.58-5.4 4.66 1.66 6.9L12 17.77l-6.06 3.52 1.66-6.9-5.4-4.66 7.06-.58L12 2.6z"
-        />
+        {/* trzy poziome płyty jedna na drugiej */}
+        <rect x="3" y="4" width="18" height="4.2" rx="1.1" fill="currentColor" opacity="0.55" />
+        <rect x="3" y="10" width="18" height="4.2" rx="1.1" fill="currentColor" opacity="0.78" />
+        <rect x="3" y="16" width="18" height="4.2" rx="1.1" fill="currentColor" />
       </svg>
     </span>
   );

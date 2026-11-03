@@ -96,7 +96,9 @@ export function OrderList({
                 <td className="order-num-cell">
                   <div className="order-num-fill" style={{ width: `${pct}%` }} aria-hidden />
                   <div className="order-num order-num--over-fill">
-                    {isGroup ? <GroupStar title={t('groupOrder')} /> : null}
+                    <span className="order-num__icon">
+                      {isGroup ? <GroupStar title={t('groupOrder')} /> : null}
+                    </span>
                     <span className="order-num__value">{orderIdLabel(row)}</span>
                   </div>
                 </td>

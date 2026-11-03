@@ -9,12 +9,24 @@ type OrderPacket = RowDataPacket & {
   IdParent?: number | null;
 };
 
+/** Single (non-group) order with a generated production path. */
+const STANDALONE_WITH_PATH_SQL = `(
+  IFNULL(o.IsGroupOrder, 0) = 0
+  AND IFNULL(o.IdParent, 0) = 0
+  AND EXISTS (SELECT 1 FROM Productions p WHERE p.OrderId = o.Id)
+)`;
+
+/** Group mother — always listed; children attached below. */
+const GROUP_MOTHER_SQL = `IFNULL(o.IsGroupOrder, 0) = 1`;
+
 /**
  * GET /api/orders
- * Query: state (default 4 = realizacja), limit (default 200), q (search)
+ *
+ * Show:
+ * - all group mothers + all their children (even without Productions)
+ * - standalone orders only if they have a Productions path
  *
  * NEVER average children into mother — each Orders.Id has its own ProductionPrc.
- * After the main list, always attach children of group mothers (and missing mothers).
  */
 export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
@@ -36,7 +48,7 @@ export const handler: Handler = async (event) => {
 
   try {
     const params = event.queryStringParameters || {};
-    const stateRaw = params.state === undefined ? '4' : params.state;
+    const stateRaw = params.state === undefined ? '' : params.state;
     const states = stateRaw
       .split(',')
       .map((s) => parseInt(s.trim(), 10))
@@ -45,7 +57,10 @@ export const handler: Handler = async (event) => {
     const q = (params.q || '').trim();
 
     const orders = await withConnection(async (conn) => {
-      const where: string[] = ['IFNULL(o.DeletedFlag, 0) = 0'];
+      const where: string[] = [
+        'IFNULL(o.DeletedFlag, 0) = 0',
+        `(${GROUP_MOTHER_SQL} OR ${STANDALONE_WITH_PATH_SQL})`,
+      ];
       const values: unknown[] = [];
 
       if (states.length === 1) {
@@ -96,49 +111,21 @@ export const handler: Handler = async (event) => {
       const byId = new Map<number, OrderPacket>();
       for (const row of rows) byId.set(Number(row.Id), row);
 
-      const motherIds = new Set<number>();
-      const missingParentIds = new Set<number>();
+      const motherIds = [...byId.values()]
+        .filter((row) => Number(row.IsGroupOrder) === 1)
+        .map((row) => Number(row.Id));
 
-      for (const row of byId.values()) {
-        if (Number(row.IsGroupOrder) === 1) {
-          motherIds.add(Number(row.Id));
-        }
-        const parent = Number(row.IdParent) || 0;
-        if (parent && !byId.has(parent)) {
-          missingParentIds.add(parent);
-        }
-      }
-
-      // Fetch missing mothers referenced by children already in the list
-      if (missingParentIds.size > 0) {
-        const ids = [...missingParentIds];
-        const [mothers] = await conn.query<OrderPacket[]>(
-          `
-          SELECT ${selectCols}
-          FROM Orders o
-          WHERE IFNULL(o.DeletedFlag, 0) = 0
-            AND o.Id IN (${ids.map(() => '?').join(',')})
-          `,
-          ids,
-        );
-        for (const m of mothers) {
-          byId.set(Number(m.Id), m);
-          if (Number(m.IsGroupOrder) === 1) motherIds.add(Number(m.Id));
-        }
-      }
-
-      // Fetch all children of group mothers (even if they did not match state/limit)
-      if (motherIds.size > 0) {
-        const ids = [...motherIds];
+      // All children of listed group mothers (with or without Productions)
+      if (motherIds.length > 0) {
         const [children] = await conn.query<OrderPacket[]>(
           `
           SELECT ${selectCols}
           FROM Orders o
           WHERE IFNULL(o.DeletedFlag, 0) = 0
-            AND o.IdParent IN (${ids.map(() => '?').join(',')})
+            AND o.IdParent IN (${motherIds.map(() => '?').join(',')})
           ORDER BY o.Id ASC
           `,
-          ids,
+          motherIds,
         );
         for (const child of children) {
           byId.set(Number(child.Id), child);

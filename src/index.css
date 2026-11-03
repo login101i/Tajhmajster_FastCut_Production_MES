@@ -291,8 +291,8 @@ table.monitor tbody tr.is-child td.order-num-cell {
   background: #f4f7f4;
   width: 8.25rem;
   max-width: 8.25rem;
-  padding: 0.2rem 0.25rem;
-  text-align: center;
+  padding: 0.2rem 0.4rem 0.2rem 0.25rem;
+  text-align: right;
   vertical-align: middle;
 }
 
@@ -311,11 +311,20 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num {
+  display: grid;
+  grid-template-columns: 2.35rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.2rem;
+  min-height: 90%;
+  width: 100%;
+}
+
+.order-num__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.15rem;
-  min-height: 90%;
+  width: 2.35rem;
+  min-height: 1.5rem;
 }
 
 .order-num__value {
@@ -323,8 +332,20 @@ table.monitor tbody tr.is-child td.order-num-cell {
   font-weight: 800;
   color: var(--ll-navy);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
   letter-spacing: -0.04em;
   line-height: 0.95;
+  text-align: right;
+  justify-self: stretch;
+  width: 100%;
+}
+
+table.monitor tbody tr.is-child .order-num {
+  grid-template-columns: 0.85rem minmax(0, 1fr);
+}
+
+table.monitor tbody tr.is-child .order-num__icon {
+  width: 0.85rem;
 }
 
 table.monitor tbody tr.is-child .order-num__value {
@@ -475,6 +496,22 @@ table.monitor tbody tr.is-child .order-num__value {
 
 .error {
   color: var(--danger);
+}
+
+.detail-backbar {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ll-line);
+  background: #fff;
+  position: sticky;
+  top: 3.25rem;
+  z-index: 15;
+}
+
+.detail-back-btn {
+  min-width: 8.5rem;
+  font-size: 1rem;
 }
 
 .detail-header {

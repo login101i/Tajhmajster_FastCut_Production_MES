@@ -38,37 +38,60 @@ export function OrderDetail({
     };
   }, [orderId]);
 
-  if (loading) return <div className="panel loading">{t('loadingOrder')}</div>;
-  if (error) return <div className="panel error">{error}</div>;
-  if (!data?.order) return <div className="panel empty">{t('noData')}</div>;
+  const backBar = (
+    <div className="detail-backbar">
+      <button className="btn detail-back-btn" type="button" onClick={onBack}>
+        {t('backList')}
+      </button>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="panel">
+        {backBar}
+        <div className="loading">{t('loadingOrder')}</div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="panel">
+        {backBar}
+        <div className="error">{error}</div>
+      </div>
+    );
+  }
+  if (!data?.order) {
+    return (
+      <div className="panel">
+        {backBar}
+        <div className="empty">{t('noData')}</div>
+      </div>
+    );
+  }
 
   const order = data.order;
   const sockets = (data.sockets || []) as ProductionSocket[];
   const group = (data.group || []) as OrderRow[];
   const isGroup = Number(order.IsGroupOrder) === 1;
-  const orderNo = (order.OwnNumber || '').trim() || String(order.Id);
+  const parent = Number(order.IdParent) || 0;
+  const orderNo =
+    !isGroup && parent > 0 ? `${order.Id} / ${parent}` : String(order.Id);
 
   return (
     <div className="panel">
+      {backBar}
       <div className="detail-header">
         <div>
-          <button
-            className="btn btn-ghost"
-            type="button"
-            onClick={onBack}
-            style={{ marginBottom: '0.75rem' }}
-          >
-            {t('backList')}
-          </button>
           <h2 className="detail-title">
             {isGroup ? <GroupStar title={t('groupOrder')} /> : null}
             {orderNo}
           </h2>
           <p className="detail-sub">
-            ID {order.Id}
-            {[order.Description, order.CompanyName].filter(Boolean).length
-              ? ` · ${[order.Description, order.CompanyName].filter(Boolean).join(' · ')}`
-              : ''}
+            {[order.Description, order.CompanyName, order.OwnNumber]
+              .filter(Boolean)
+              .join(' · ') || '—'}
           </p>
         </div>
         <div style={{ minWidth: '12rem' }}>
@@ -91,8 +114,10 @@ export function OrderDetail({
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                 {Number(g.IsGroupOrder) === 1 ? <GroupStar title={t('groupOrder')} /> : null}
                 {Number(g.IsGroupOrder) === 1 ? t('mother') : t('child')}{' '}
-                {(g.OwnNumber || '').trim() || `#${g.Id}`} ·{' '}
-                {g.ProductionPrc != null ? `${Number(g.ProductionPrc).toFixed(0)}%` : '—'}
+                {Number(g.IsGroupOrder) === 1
+                  ? g.Id
+                  : `${g.Id} / ${Number(g.IdParent) || order.Id}`}{' '}
+                · {g.ProductionPrc != null ? `${Number(g.ProductionPrc).toFixed(0)}%` : '—'}
               </span>
             </button>
           ))}

@@ -37,7 +37,7 @@ export default function App() {
   });
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [q, setQ] = useState('');
-  const [stateFilter, setStateFilter] = useState('4');
+  const [stateFilter, setStateFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -103,10 +103,10 @@ export default function App() {
                 onChange={(e) => setStateFilter(e.target.value)}
                 aria-label={t('stateFilter')}
               >
+                <option value="">{t('stateAll')}</option>
                 <option value="4">{t('stateRealization')}</option>
                 <option value="4,5">{t('stateRealizationDone')}</option>
                 <option value="5">{t('stateDone')}</option>
-                <option value="">{t('stateAll')}</option>
               </select>
               <button className="btn" type="button" onClick={() => void load()} disabled={loading}>
                 {loading ? t('refreshing') : t('refresh')}
