@@ -48,6 +48,7 @@ export const handler: Handler = async (event) => {
 
   try {
     const params = event.queryStringParameters || {};
+    const groupId = parseInt(params.groupId || '', 10) || 0;
     const stateRaw = params.state === undefined ? '' : params.state;
     const states = stateRaw
       .split(',')
@@ -57,11 +58,16 @@ export const handler: Handler = async (event) => {
     const q = (params.q || '').trim();
 
     const orders = await withConnection(async (conn) => {
-      const where: string[] = [
-        'IFNULL(o.DeletedFlag, 0) = 0',
-        `(${GROUP_MOTHER_SQL} OR ${STANDALONE_WITH_PATH_SQL})`,
-      ];
+      const where: string[] = ['IFNULL(o.DeletedFlag, 0) = 0'];
       const values: unknown[] = [];
+
+      // Production test / single group: mother + all children
+      if (groupId > 0) {
+        where.push('(o.Id = ? OR o.IdParent = ?)');
+        values.push(groupId, groupId);
+      } else {
+        where.push(`(${GROUP_MOTHER_SQL} OR ${STANDALONE_WITH_PATH_SQL})`);
+      }
 
       if (states.length === 1) {
         where.push('o.State = ?');
@@ -87,14 +93,28 @@ export const handler: Handler = async (event) => {
           o.Description,
           o.CompanyName,
           o.FormName,
+          o.Type,
+          o.TypeStr,
           o.State,
+          o.OptimizeState,
+          o.OnlineState,
+          o.OnlineOrderId,
           o.DateGeneration,
           o.DateExecution,
           o.ProductionPrc,
           o.IsGroupOrder,
           o.IdParent,
           o.PriorityStr,
-          o.MaterialsSymbols
+          o.MaterialsSymbols,
+          o.FlagState,
+          o.JobCutFlag,
+          o.JobCutNumber,
+          o.MaterialsGroupFlag,
+          o.MaterialsGroupNumber,
+          o.ExportCutFlag,
+          o.ExportCutNumber,
+          o.CNCCnt,
+          o.\`3DGenerateCNCFiles\`
       `;
 
       const [rows] = await conn.query<OrderPacket[]>(

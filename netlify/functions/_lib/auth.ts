@@ -29,6 +29,6 @@ export function assertMonitorAccess(event: HandlerEvent): { ok: true } | { ok: f
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-monitor-token',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Content-Type': 'application/json',
 };

@@ -65,12 +65,15 @@ function toNetlifyEvent(req, url, body) {
 
 const orders = await loadHandler('orders');
 const orderDetail = await loadHandler('order-detail');
+const syncGroupChildren = await loadHandler('sync-group-children-prc');
 
 const routes = {
   '/api/orders': orders,
   '/.netlify/functions/orders': orders,
   '/api/order-detail': orderDetail,
   '/.netlify/functions/order-detail': orderDetail,
+  '/api/sync-group-children-prc': syncGroupChildren,
+  '/.netlify/functions/sync-group-children-prc': syncGroupChildren,
 };
 
 const server = http.createServer(async (req, res) => {

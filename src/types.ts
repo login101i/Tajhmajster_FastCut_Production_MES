@@ -4,7 +4,12 @@ export interface OrderRow {
   Description: string | null;
   CompanyName: string | null;
   FormName: string | null;
+  Type: number | null;
+  TypeStr: string | null;
   State: number;
+  OptimizeState: number | null;
+  OnlineState: number | null;
+  OnlineOrderId: number | null;
   DateGeneration: string | null;
   DateExecution: string | null;
   ProductionPrc: string | number | null;
@@ -12,6 +17,15 @@ export interface OrderRow {
   IdParent: number | null;
   PriorityStr: string | null;
   MaterialsSymbols: string | null;
+  FlagState: number | null;
+  JobCutFlag: number | null;
+  JobCutNumber: number | null;
+  MaterialsGroupFlag: number | null;
+  MaterialsGroupNumber: number | null;
+  ExportCutFlag: number | null;
+  ExportCutNumber: number | null;
+  CNCCnt: number | null;
+  '3DGenerateCNCFiles': number | null;
 }
 
 export interface ProductionSocket {
@@ -41,3 +55,5 @@ export interface OrdersResponse {
   orders: OrderRow[];
   error?: string;
 }
+
+export type AppView = 1 | 2 | 3;

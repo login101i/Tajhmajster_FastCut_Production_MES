@@ -1,4 +1,5 @@
 import { useI18n } from '../i18n/LanguageContext';
+import { buildDisplayRows, orderIdLabel } from '../lib/orderDisplay';
 import {
   formatProductionPercentValue,
   parseProductionPercent,
@@ -6,57 +7,6 @@ import {
 import type { OrderRow } from '../types';
 import { GroupStar } from './GroupStar';
 import { PercentBar } from './PercentBar';
-
-/**
- * NR zamówienia = Id zlecenia.
- * Dziecko grupy: "108 / 110" (Id dziecka / Id matki).
- */
-function orderIdLabel(row: OrderRow): string {
-  const parent = Number(row.IdParent) || 0;
-  const isGroupMother = Number(row.IsGroupOrder) === 1;
-  if (!isGroupMother && parent > 0) {
-    return `${row.Id} / ${parent}`;
-  }
-  return String(row.Id);
-}
-
-/** Mothers / standalone first; children nested under mother. */
-export function buildDisplayRows(orders: OrderRow[]): Array<OrderRow & { depth: number }> {
-  const byId = new Map(orders.map((o) => [o.Id, o]));
-  const children = new Map<number, OrderRow[]>();
-  const roots: OrderRow[] = [];
-  const placedAsChild = new Set<number>();
-
-  for (const o of orders) {
-    const parent = Number(o.IdParent) || 0;
-    const isMother = Number(o.IsGroupOrder) === 1;
-    if (!isMother && parent && byId.has(parent)) {
-      const list = children.get(parent) || [];
-      list.push(o);
-      children.set(parent, list);
-      placedAsChild.add(o.Id);
-    }
-  }
-
-  for (const o of orders) {
-    if (!placedAsChild.has(o.Id)) {
-      roots.push(o);
-    }
-  }
-
-  // Keep newest mothers/standalone first; children ascending under mother
-  roots.sort((a, b) => b.Id - a.Id);
-
-  const out: Array<OrderRow & { depth: number }> = [];
-  for (const root of roots) {
-    out.push({ ...root, depth: 0 });
-    const kids = (children.get(root.Id) || []).slice().sort((a, b) => a.Id - b.Id);
-    for (const kid of kids) {
-      out.push({ ...kid, depth: 1 });
-    }
-  }
-  return out;
-}
 
 export function OrderList({
   orders,
