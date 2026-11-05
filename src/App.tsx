@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { LoginGate } from './components/LoginGate';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { OrderDetail } from './components/OrderDetail';
@@ -27,6 +33,9 @@ import {
   AUTO_REFRESH_HOUR_FROM,
   AUTO_REFRESH_HOUR_TO,
   AUTO_REFRESH_MS,
+  HEADER_HIDE_MS_PHONE,
+  HEADER_HIDE_MS_WIDE,
+  HEADER_PHONE_MAX_PX,
   isAutoRefreshHours,
   isChildProductionsGroup,
   MIN_PRODUCTION_ORDER_ID,
@@ -43,46 +52,85 @@ import {
 export { MIN_PRODUCTION_ORDER_ID, PRODUCTION_TEST_GROUP_IDS };
 
 function TopBar({
-  title,
   nav,
   actions,
   logout,
   devMode,
   onToggleDev,
+  hidden,
 }: {
-  title: string;
   nav?: ReactNode;
   actions?: ReactNode;
   logout?: ReactNode;
   devMode: boolean;
   onToggleDev: () => void;
+  hidden?: boolean;
 }) {
+  const { t } = useI18n();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (hidden) setMenuOpen(false);
+  }, [hidden]);
+
   return (
-    <header className="topbar">
-      <div className="topbar__left">
-        <div className="logo-badge" aria-label="LIGNUM LINK">
-          <span className="logo-badge__mark">LL</span>
-          Lignum Link
-        </div>
-        <div className="topbar__title">{title}</div>
-        {actions ? <div className="topbar__actions">{actions}</div> : null}
-      </div>
-      {nav ? <div className="topbar__center">{nav}</div> : null}
-      <div className="topbar__right">
-        <LanguageSwitcher />
-        {logout}
-        <span className="app-version" title={APP_VERSION}>
-          {APP_VERSION}
-        </span>
+    <header className={`topbar${hidden ? ' topbar--hidden' : ''}`}>
+      <div className="topbar__phone">
         <button
           type="button"
-          className={`dev-toggle dev-toggle--ghost${devMode ? ' dev-toggle--on' : ''}`}
-          onClick={onToggleDev}
-          aria-pressed={devMode}
-          aria-label="DEV"
-          title=""
-        />
+          className="topbar__burger"
+          aria-label={t('menu')}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+        {nav ? <div className="topbar__phone-nav">{nav}</div> : null}
+        <div className="logo-badge logo-badge--compact" aria-label="LIGNUM LINK">
+          <span className="logo-badge__mark">LL</span>
+        </div>
       </div>
+
+      <div className="topbar__desktop">
+        <div className="topbar__left">
+          <div className="logo-badge" aria-label="LIGNUM LINK">
+            <span className="logo-badge__mark">LL</span>
+            Lignum Link
+          </div>
+          {actions ? <div className="topbar__actions">{actions}</div> : null}
+        </div>
+        {nav ? <div className="topbar__center">{nav}</div> : null}
+        <div className="topbar__right">
+          <LanguageSwitcher />
+          {logout}
+          <span className="app-version" title={APP_VERSION}>
+            {APP_VERSION}
+          </span>
+          <button
+            type="button"
+            className={`dev-toggle dev-toggle--ghost${devMode ? ' dev-toggle--on' : ''}`}
+            onClick={onToggleDev}
+            aria-pressed={devMode}
+            aria-label="DEV"
+            title=""
+          />
+        </div>
+      </div>
+
+      {menuOpen ? (
+        <div className="topbar__drawer" role="dialog" aria-label={t('menu')}>
+          {actions ? <div className="topbar__drawer-actions">{actions}</div> : null}
+          <div className="topbar__drawer-foot">
+            <LanguageSwitcher />
+            {logout}
+            <span className="app-version" title={APP_VERSION}>
+              {APP_VERSION}
+            </span>
+          </div>
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -149,6 +197,7 @@ export default function App() {
   const [refreshInSec, setRefreshInSec] = useState(Math.ceil(AUTO_REFRESH_MS / 1000));
   const [autoRefreshStopped, setAutoRefreshStopped] = useState(false);
   const [animPlayToken, setAnimPlayToken] = useState(0);
+  const [headerHidden, setHeaderHidden] = useState(false);
 
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -162,6 +211,41 @@ export default function App() {
     document.body.classList.toggle('view-board', board);
     return () => document.body.classList.remove('view-board');
   }, [view, prodTest]);
+
+  // Ukryj header po braku ruchu: telefon 5 s, tablet/desktop 10 s
+  useEffect(() => {
+    let timer: number | undefined;
+    const hideDelay = () =>
+      window.matchMedia(`(max-width: ${HEADER_PHONE_MAX_PX}px)`).matches
+        ? HEADER_HIDE_MS_PHONE
+        : HEADER_HIDE_MS_WIDE;
+
+    const bump = () => {
+      setHeaderHidden(false);
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => setHeaderHidden(true), hideDelay());
+    };
+
+    const events: Array<keyof WindowEventMap> = [
+      'mousemove',
+      'mousedown',
+      'touchstart',
+      'touchmove',
+      'keydown',
+      'scroll',
+      'wheel',
+    ];
+    bump();
+    for (const ev of events) window.addEventListener(ev, bump, { passive: true });
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      for (const ev of events) window.removeEventListener(ev, bump);
+    };
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle('header-hidden', headerHidden);
+  }, [headerHidden]);
 
   const selectView = (next: AppView) => {
     setView(next);
@@ -513,12 +597,12 @@ export default function App() {
   return (
     <>
       <TopBar
-        title={t('appSubtitle')}
         nav={headerNav}
         actions={headerActions}
         logout={headerLogout}
         devMode={devMode}
         onToggleDev={toggleDevMode}
+        hidden={headerHidden}
       />
       <div
         className={`app-shell${view === 2 && !prodTest ? ' app-shell--wide' : ''}${view === 3 && !prodTest ? ' app-shell--board' : ''}`}

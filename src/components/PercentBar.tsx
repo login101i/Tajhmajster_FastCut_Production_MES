@@ -11,6 +11,7 @@ export function PercentBar({
   suffix,
   /** Increment this to force grow animation (e.g. DEV play). */
   playToken = 0,
+  isGroup = false,
 }: {
   percent: number | string | null | undefined;
   /** Show whole percent only, e.g. 10% instead of 10.00% */
@@ -18,6 +19,8 @@ export function PercentBar({
   /** Extra text in the bar, e.g. "2/20" */
   suffix?: string;
   playToken?: number;
+  /** Ciemniejsza zieleń — matka zlecenia grupowego. */
+  isGroup?: boolean;
 }) {
   const parsed = parseProductionPercent(percent);
   const prevRef = useRef<number | null>(null);
@@ -61,7 +64,7 @@ export function PercentBar({
   const pctText = integerOnly ? `${Math.round(parsed)}%` : `${precise}%`;
   const title = suffix ? `${pctText} · ${suffix}` : pctText;
   const label = suffix ? `${pctText}  ${suffix}` : pctText;
-  const fill = resolveFillColor(parsed);
+  const fill = resolveFillColor(parsed, { isGroup });
 
   return (
     <div className={`percent-bar${growing ? ' percent-bar--grow' : ''}`} title={title}>

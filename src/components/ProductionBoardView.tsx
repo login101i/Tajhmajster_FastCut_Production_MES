@@ -8,6 +8,7 @@ import {
   pctOf,
   type BoardCluster,
 } from '../lib/orderDisplay';
+import { resolveFillColor } from '../lib/percent';
 import type { OrderRow } from '../types';
 
 /** Niebieska ikona „zlecenie grupowe” (środek kafelka matki). */
@@ -40,6 +41,8 @@ function OrderCard({
 }) {
   const pct = pctOf(order);
   const rejected = isRejected(order);
+  /* Ciemna zieleń tylko matka; dzieci = zwykła zieleń */
+  const fillColor = resolveFillColor(pct, { isGroup: role === 'mother' });
   const prevRef = useRef<number | null>(null);
   const [displayWidth, setDisplayWidth] = useState(pct);
   const [growing, setGrowing] = useState(false);
@@ -85,7 +88,7 @@ function OrderCard({
     >
       <span
         className="pb-card__fill"
-        style={{ width: `${displayWidth}%` }}
+        style={{ width: `${displayWidth}%`, backgroundColor: fillColor }}
         aria-hidden
       />
       <span className="pb-card__body">

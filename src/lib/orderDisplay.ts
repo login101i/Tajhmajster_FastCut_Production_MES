@@ -9,11 +9,6 @@ import { parseProductionPercent } from './percent';
 import { activityTimestamp } from './recentGains';
 
 export function orderIdLabel(row: OrderRow): string {
-  const parent = Number(row.IdParent) || 0;
-  const isGroupMother = Number(row.IsGroupOrder) === 1;
-  if (!isGroupMother && parent > 0) {
-    return `${row.Id} / ${parent}`;
-  }
   return String(row.Id);
 }
 

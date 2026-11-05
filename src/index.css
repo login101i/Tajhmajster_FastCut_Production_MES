@@ -66,17 +66,37 @@ button {
 
 /* ── Top bar / brand (LIGNUM LINK style) ── */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--ll-line);
+  backdrop-filter: blur(6px);
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+
+/* Poza flow — lista / board wjeżdżają pod górę ekranu */
+.topbar--hidden {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  width: 100%;
+  transform: translateY(-110%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.topbar__phone {
+  display: none;
+}
+
+.topbar__desktop {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 0.75rem;
   padding: 0.65rem 1.1rem;
-  background: rgba(255, 255, 255, 0.92);
-  border-bottom: 1px solid var(--ll-line);
-  backdrop-filter: blur(6px);
-  position: sticky;
-  top: 0;
-  z-index: 20;
 }
 
 .topbar__left {
@@ -113,6 +133,31 @@ button {
   min-width: 0;
 }
 
+.topbar__burger {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0.45rem;
+  border: 1px solid var(--ll-line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.topbar__burger span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background: var(--ll-navy);
+  border-radius: 1px;
+}
+
+.topbar__drawer {
+  display: none;
+}
+
 .app-version {
   color: #9aa8b5;
   font-size: 0.68rem;
@@ -133,25 +178,71 @@ button {
   padding: 0.35rem 0.65rem;
 }
 
-@media (max-width: 900px) {
-  .topbar {
-    grid-template-columns: 1fr;
-    justify-items: stretch;
+/* Telefon: burger | Widok 1/2 | logo */
+@media (max-width: 800px) {
+  .topbar__desktop {
+    display: none;
   }
 
-  .topbar__left,
-  .topbar__center,
-  .topbar__right {
-    justify-self: stretch;
-    justify-content: flex-start;
+  .topbar__phone {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.65rem;
   }
 
-  .topbar__center {
+  .topbar__phone-nav {
+    display: flex;
     justify-content: center;
   }
 
-  .topbar__right {
-    justify-content: flex-end;
+  .logo-badge--compact {
+    padding: 0.28rem 0.4rem;
+    font-size: 0;
+    gap: 0;
+  }
+
+  .logo-badge--compact .logo-badge__mark {
+    font-size: 0.78rem;
+  }
+
+  .topbar__drawer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem 1rem;
+    border-top: 1px solid var(--ll-line);
+    background: #fff;
+  }
+
+  .topbar__drawer-title {
+    font-weight: 800;
+    color: var(--ll-navy);
+  }
+
+  .topbar__drawer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .topbar__drawer-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .app-shell {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .app-shell .panel {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
   }
 }
 
@@ -575,9 +666,9 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num-col {
-  width: 6.5rem;
-  min-width: 6.5rem;
-  max-width: 6.5rem;
+  width: 5.85rem;
+  min-width: 5.85rem;
+  max-width: 5.85rem;
 }
 
 .order-num-cell {
@@ -585,9 +676,9 @@ table.monitor tbody tr.is-child td.order-num-cell {
   white-space: nowrap;
   overflow: hidden;
   background: #f4f7f4;
-  width: 6.5rem;
-  max-width: 6.5rem;
-  padding: 0.2rem 0.35rem 0.2rem 0.2rem;
+  width: 5.85rem;
+  max-width: 5.85rem;
+  padding: 0.2rem 0.25rem 0.2rem 0.12rem;
   text-align: right;
   vertical-align: middle;
 }
@@ -608,9 +699,9 @@ table.monitor tbody tr.is-child td.order-num-cell {
 
 .order-num {
   display: grid;
-  grid-template-columns: 2.35rem minmax(0, 1fr);
+  grid-template-columns: 1.7rem minmax(0, 1fr);
   align-items: center;
-  column-gap: 0.2rem;
+  column-gap: 0.15rem;
   min-height: 90%;
   width: 100%;
 }
@@ -619,12 +710,12 @@ table.monitor tbody tr.is-child td.order-num-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.35rem;
+  width: 1.7rem;
   min-height: 1.5rem;
 }
 
 .order-num__value {
-  font-size: clamp(1.35rem, 4vh, 1.85rem);
+  font-size: clamp(1.9rem, 5.6vh, 2.5rem);
   font-weight: 800;
   color: var(--ll-navy);
   font-variant-numeric: tabular-nums;
@@ -636,18 +727,47 @@ table.monitor tbody tr.is-child td.order-num-cell {
   width: 100%;
 }
 
-table.monitor tbody tr.is-child .order-num {
-  grid-template-columns: 0.85rem minmax(0, 1fr);
+/* Matka grupy: ikona tuż przy numerze, numer 1.2× większy */
+.order-num--mother {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  justify-content: end;
+  justify-items: end;
+  align-items: center;
+  column-gap: 0.18rem;
+  width: 100%;
 }
 
-table.monitor tbody tr.is-child .order-num__icon {
-  width: 0.85rem;
+.order-num--mother .order-num__icon {
+  width: auto;
 }
 
-table.monitor tbody tr.is-child .order-num__value {
-  font-size: clamp(1.15rem, 3.2vh, 1.45rem);
+.order-num--mother .order-num__value {
+  font-size: clamp(2.28rem, 6.72vh, 3rem);
+  width: auto;
+  text-align: right;
+}
+
+/* Podzlecenie: niebieska linia tuż po lewej od numeru */
+.order-num--child {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  justify-content: end;
+  justify-items: end;
+  column-gap: 0.15rem;
+  width: 100%;
+}
+
+.order-num--child .order-num__icon {
+  width: auto;
+}
+
+.order-num--child .order-num__value {
+  font-size: clamp(1.8rem, 5.2vh, 2.3rem);
   font-weight: 700;
   letter-spacing: -0.02em;
+  text-align: right;
+  width: auto;
 }
 
 .order-num__id {
@@ -659,8 +779,8 @@ table.monitor tbody tr.is-child .order-num__value {
 
 .desc-col,
 .desc-cell {
-  width: 125px;
-  max-width: 125px;
+  width: 165px;
+  max-width: 165px;
 }
 
 .desc-cell .order-desc,
@@ -709,8 +829,17 @@ table.monitor tbody tr.is-child .order-num__value {
 }
 
 .order-num-cell .group-star svg {
-  width: clamp(1.75rem, 5vh, 2.5rem);
-  height: clamp(1.75rem, 5vh, 2.5rem);
+  width: clamp(1.35rem, 4vh, 1.9rem);
+  height: clamp(1.35rem, 4vh, 1.9rem);
+}
+
+.order-num-cell .group-child-line {
+  color: #9fd0ff;
+}
+
+.order-num-cell .group-child-line svg {
+  width: clamp(1rem, 3vh, 1.35rem);
+  height: clamp(1rem, 3vh, 1.35rem);
 }
 
 .order-desc {
@@ -734,9 +863,9 @@ table.monitor tbody tr.is-child .order-num__value {
 
 .percent-cell {
   position: relative;
-  width: 14rem;
-  min-width: 14rem;
-  max-width: 18rem;
+  width: 8.5rem;
+  min-width: 8.5rem;
+  max-width: 9.5rem;
   padding: 0 !important;
   height: inherit;
   vertical-align: middle;
@@ -754,7 +883,7 @@ table.monitor tbody tr.is-child .order-num__value {
   justify-content: center;
   overflow: hidden;
   border: 1px solid var(--ll-line);
-  background: #eef2f6;
+  background: #fff;
   box-sizing: border-box;
 }
 
@@ -764,6 +893,17 @@ table.monitor tbody tr.is-child .order-num__value {
   height: 100%;
   transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: left center;
+}
+
+/* Pełny pasek postępu przez cały wiersz (telefon) — ukryty na desktopie */
+.row-progress {
+  display: none;
+}
+
+.row-progress__fill {
+  display: block;
+  height: 100%;
+  transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .percent-bar--grow .percent-bar__fill {
@@ -1725,16 +1865,22 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .percent-cell {
-    width: 10rem;
-    min-width: 10rem;
-    max-width: 12rem;
+    width: 7.5rem;
+    min-width: 7.5rem;
+    max-width: 8.5rem;
   }
 
   .order-num-col,
   .order-num-cell {
-    width: 5.75rem;
-    min-width: 5.75rem;
-    max-width: 5.75rem;
+    width: 5.4rem;
+    min-width: 5.4rem;
+    max-width: 5.4rem;
+  }
+
+  .desc-col,
+  .desc-cell {
+    width: 150px;
+    max-width: 150px;
   }
 }
 
@@ -1838,9 +1984,10 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     padding-right: 0.45rem;
   }
 
-  /* Widok 1 — karty na telefonie (bez nakładania kolumn) */
+  /* Widok 1 — pełna szerokość, niski wiersz, zieleń przez cały rząd */
   .table-wrap {
     overflow-x: hidden;
+    width: 100%;
   }
 
   table.monitor {
@@ -1853,9 +2000,15 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     display: none;
   }
 
+  /* Jak na desktopie: 15px odstępu między zleceniami grupowymi */
   table.monitor tbody.order-group {
     display: block;
-    margin: 0 0 0.65rem;
+    margin-top: 15px;
+    margin-bottom: 15px;
+  }
+
+  table.monitor tbody.order-group + tbody.order-group {
+    margin-top: 15px;
   }
 
   table.monitor tbody.order-group tr:first-child td,
@@ -1866,20 +2019,22 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 
   table.monitor tbody tr {
     display: grid;
-    grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr);
+    grid-template-columns: minmax(3.6rem, auto) minmax(0, 1fr);
     grid-template-areas:
       'num pct'
       'desc desc';
-    column-gap: 0.55rem;
-    row-gap: 0.35rem;
+    column-gap: 0.4rem;
+    row-gap: 0.12rem;
+    position: relative;
     height: auto;
     min-height: 0;
-    padding: 0.7rem 0.75rem;
+    padding: 0.38rem 0.55rem;
     margin: 0;
     background: #fff;
-    border: 1px solid #dce3ea;
+    border: none;
     border-bottom: 1px solid #dce3ea;
     box-sizing: border-box;
+    overflow: hidden;
   }
 
   table.monitor tbody tr + tr {
@@ -1887,8 +2042,8 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   table.monitor tbody tr.is-child {
-    background: #f7f9fb;
-    padding-left: 1.1rem;
+    background: transparent;
+    padding-left: 0.85rem;
   }
 
   table.monitor tbody tr.is-group-mother {
@@ -1896,13 +2051,30 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   table.monitor tbody tr:hover {
-    background: #f3f7fb;
+    background: transparent;
   }
 
   table.monitor td {
     border: none !important;
     padding: 0 !important;
     overflow: visible;
+    position: relative;
+    z-index: 1;
+    background: transparent !important;
+  }
+
+  table.monitor td.row-progress {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .row-progress__fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    height: 100%;
   }
 
   table.monitor td.order-num-cell {
@@ -1910,7 +2082,6 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     width: auto !important;
     max-width: none !important;
     min-width: 0 !important;
-    background: transparent !important;
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -1922,16 +2093,22 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     width: auto !important;
     min-width: 0 !important;
     max-width: none !important;
-    position: relative;
-    height: 2.35rem;
+    height: 1.55rem;
     align-self: center;
   }
 
+  /* Pasek % tylko etykieta — wypełnienie idzie przez cały wiersz */
   table.monitor td.percent-cell .percent-bar {
-    position: absolute;
-    inset: 0;
-    height: auto;
-    width: auto;
+    position: relative;
+    inset: auto;
+    height: 100%;
+    width: 100%;
+    border: none;
+    background: transparent;
+  }
+
+  table.monitor td.percent-cell .percent-bar__fill {
+    display: none;
   }
 
   table.monitor td.desc-cell {
@@ -1941,12 +2118,11 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .desc-cell .order-desc {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-    font-size: 0.92rem;
-    line-height: 1.3;
-    word-break: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.82rem;
+    line-height: 1.2;
   }
 
   .desc-cell .muted {
@@ -1955,41 +2131,82 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 
   .order-num {
     grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 0.25rem;
+    column-gap: 0.2rem;
     width: auto;
   }
 
   .order-num__icon {
     width: auto;
-    min-width: 1.35rem;
+    min-width: 1.1rem;
   }
 
   .order-num__value {
-    font-size: 1.25rem;
+    font-size: 2.2rem;
     text-align: left;
   }
 
-  table.monitor tbody tr.is-child .order-num {
-    grid-template-columns: 0 minmax(0, 1fr);
+  .order-num--mother {
+    justify-content: start;
+    justify-items: start;
   }
 
-  table.monitor tbody tr.is-child .order-num__icon {
-    width: 0;
+  .order-num--mother .order-num__value {
+    font-size: 2.64rem;
+  }
+
+  .order-num--child {
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+    justify-items: start;
+    column-gap: 0.15rem;
+  }
+
+  .order-num--child .order-num__icon {
+    width: auto;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
   }
 
-  table.monitor tbody tr.is-child .order-num__value {
-    font-size: 1.1rem;
+  .order-num--child .order-num__value {
+    font-size: 2.1rem;
+    width: auto;
   }
 
   .order-num-cell .group-star svg {
-    width: 1.35rem;
-    height: 1.35rem;
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .order-num-cell .group-child-line svg {
+    width: 0.85rem;
+    height: 0.85rem;
   }
 
   .percent-bar__label {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
+  }
+
+  /* Tekst czytelny na jasnej i ciemnej zieleni (halo) */
+  table.monitor tbody tr .order-num__value,
+  table.monitor tbody tr .order-desc,
+  table.monitor tbody tr .percent-bar__label {
+    text-shadow:
+      0 0 3px #fff,
+      0 0 3px #fff,
+      0 1px 0 #fff;
+  }
+
+  /* 100% — pełny ciemnozielony rząd, jasny tekst */
+  table.monitor tbody tr.is-done .order-num__value,
+  table.monitor tbody tr.is-done .order-desc,
+  table.monitor tbody tr.is-done .percent-bar__label {
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+
+  table.monitor tbody tr.is-done .group-star {
+    filter: brightness(0) invert(1);
   }
 }
 

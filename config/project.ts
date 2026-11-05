@@ -14,10 +14,19 @@
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.1.07';
+export const APP_VERSION = 'V.1.08';
 
 /** Auto-odświeżanie listy (ms). 30_000 = 30 s, 60_000 = 60 s. */
 export const AUTO_REFRESH_MS = 60_000;
+
+/** Ukryj header po braku ruchu: telefon (ms). */
+export const HEADER_HIDE_MS_PHONE = 5_000;
+
+/** Ukryj header po braku ruchu: tablet / desktop (ms). */
+export const HEADER_HIDE_MS_WIDE = 10_000;
+
+/** Breakpoint „telefon” dla layoutu headera / hide (px). */
+export const HEADER_PHONE_MAX_PX = 800;
 
 /**
  * Godziny lokalne, w których działa auto-odświeżanie (oszczędność DB).

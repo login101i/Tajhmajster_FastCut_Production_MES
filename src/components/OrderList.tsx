@@ -1,10 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { useI18n } from '../i18n/LanguageContext';
 import { buildDisplayGroups, isRejected, orderIdLabel } from '../lib/orderDisplay';
-import { formatProductionPercentValue, parseProductionPercent } from '../lib/percent';
+import {
+  formatProductionPercentValue,
+  parseProductionPercent,
+  resolveFillColor,
+} from '../lib/percent';
 import { trackProductionGains } from '../lib/recentGains';
 import type { OrderRow } from '../types';
-import { GroupStar } from './GroupStar';
+import { GroupChildLine, GroupStar } from './GroupStar';
 import { PercentBar } from './PercentBar';
 
 export function OrderList({
@@ -79,28 +83,53 @@ export function OrderList({
             <tbody key={motherId} className="order-group">
               {group.map((row) => {
                 const isGroup = Number(row.IsGroupOrder) === 1;
+                const isGroupMother =
+                  isGroup || (row.depth === 0 && group.length > 1);
                 const pct = parseProductionPercent(row.ProductionPrc) ?? 0;
                 const pctLabel = `${formatProductionPercentValue(pct)}%`;
                 const isScrollTarget = scrollTargetId != null && row.Id === scrollTargetId;
                 const rejected = isRejected(row);
+                /* Ciemna zieleń tylko matka grupy; podzlecenia = zwykła skala */
+                const fillColor = resolveFillColor(pct, { isGroup: isGroupMother });
                 return (
                   <tr
                     key={row.Id}
                     ref={isScrollTarget ? focusRef : undefined}
                     className={[
                       row.depth > 0 ? 'is-child' : '',
-                      isGroup || (row.depth === 0 && group.length > 1) ? 'is-group-mother' : '',
+                      isGroupMother ? 'is-group-mother' : '',
+                      isGroupMother ? 'is-group-fill' : '',
                       focusRowId === row.Id || isScrollTarget ? 'is-focus-order' : '',
                       rejected ? 'is-rejected' : '',
+                      pct >= 100 ? 'is-done' : '',
                     ]
                       .filter(Boolean)
                       .join(' ') || undefined}
                     onClick={() => onSelect(row.Id)}
                   >
+                    <td className="row-progress" aria-hidden>
+                      <span
+                        className="row-progress__fill"
+                        style={{ width: `${pct}%`, backgroundColor: fillColor }}
+                      />
+                    </td>
                     <td className="order-num-cell">
-                      <div className="order-num order-num--over-fill">
+                      <div
+                        className={[
+                          'order-num',
+                          'order-num--over-fill',
+                          row.depth > 0 ? 'order-num--child' : '',
+                          isGroup ? 'order-num--mother' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                      >
                         <span className="order-num__icon">
-                          {isGroup ? <GroupStar title={t('groupOrder')} /> : null}
+                          {isGroup ? (
+                            <GroupStar title={t('groupOrder')} />
+                          ) : row.depth > 0 ? (
+                            <GroupChildLine title={t('child')} />
+                          ) : null}
                         </span>
                         <span className="order-num__value">{orderIdLabel(row)}</span>
                       </div>
@@ -108,6 +137,7 @@ export function OrderList({
                     <td className="percent-cell">
                       <PercentBar
                         percent={row.ProductionPrc}
+                        isGroup={isGroupMother}
                         playToken={
                           animOrderId != null && row.Id === animOrderId ? animPlayToken : 0
                         }
