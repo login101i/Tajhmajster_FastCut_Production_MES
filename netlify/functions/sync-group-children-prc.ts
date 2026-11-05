@@ -1,29 +1,16 @@
 import type { Handler } from '@netlify/functions';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
+import {
+  CHILD_PRODUCTIONS_SYMBOL,
+  isChildProductionsGroup,
+} from '../../config/project';
 import { assertMonitorAccess, corsHeaders } from './_lib/auth';
 import { withConnection } from './_lib/db';
 
 /**
  * Sync / preview child Orders.ProductionPrc from scanned FullPartList pieces.
- *
- * Link: ProductionsSocketsCheckLists.IdJoin (or Symbol) → OrdersPieces.Id
- * Child: OrdersPieces.IdOrderParent
- * Formula per child: SUM(QuantityStamp) / SUM(Quantity) * 100
- *
- * For groups in CHILD_PRODUCTIONS_GROUP_IDS (e.g. 9124) when
- * ?createChildProductions=1: ensure each child has a Productions row for
- * Symbol TAJHMAJSTER _KOMISIONIRANJE and keep ProductionPercent in sync.
- * Only if mother already has that path. Mother Productions row untouched.
- *
- * ?dryRun=1 — only compute stats, do not UPDATE Orders / Productions
- * GET|POST /api/sync-group-children-prc?groupId=9124&createChildProductions=1
+ * See config/project.ts for CHILD_PRODUCTIONS_* settings.
  */
-
-/** Test groups: create/update child Productions rows on sync (not mother). */
-const CHILD_PRODUCTIONS_GROUP_IDS = new Set([9124]);
-
-/** Only clone/sync this production path for children. */
-const CHILD_PRODUCTIONS_SYMBOL = 'TAJHMAJSTER _KOMISIONIRANJE';
 
 function generateProductionIdUnique(): string {
   return 'ZT' + Math.random().toString(36).substring(2, 17).toUpperCase();
@@ -181,7 +168,7 @@ export const handler: Handler = async (event) => {
       if (
         !dryRun &&
         createChildProductions &&
-        CHILD_PRODUCTIONS_GROUP_IDS.has(groupId) &&
+        isChildProductionsGroup(groupId) &&
         updates.length > 0
       ) {
         const [motherProdRows] = await conn.query<RowDataPacket[]>(

@@ -1,9 +1,7 @@
+import { useEffect, useRef } from 'react';
 import { useI18n } from '../i18n/LanguageContext';
-import { buildDisplayRows, orderIdLabel } from '../lib/orderDisplay';
-import {
-  formatProductionPercentValue,
-  parseProductionPercent,
-} from '../lib/percent';
+import { buildDisplayGroups, orderIdLabel } from '../lib/orderDisplay';
+import { formatProductionPercentValue, parseProductionPercent } from '../lib/percent';
 import type { OrderRow } from '../types';
 import { GroupStar } from './GroupStar';
 import { PercentBar } from './PercentBar';
@@ -11,14 +9,36 @@ import { PercentBar } from './PercentBar';
 export function OrderList({
   orders,
   onSelect,
+  focusOrderId = null,
+  onFocusHandled,
+  animOrderId = null,
+  animPlayToken = 0,
 }: {
   orders: OrderRow[];
   onSelect: (id: number) => void;
+  /** Scroll this order (or its group mother) to the top of the list. */
+  focusOrderId?: number | null;
+  onFocusHandled?: () => void;
+  /** DEV: force grow animation on this order id */
+  animOrderId?: number | null;
+  animPlayToken?: number;
 }) {
   const { t } = useI18n();
-  const rows = buildDisplayRows(orders);
+  const groups = buildDisplayGroups(orders);
+  const focusRef = useRef<HTMLTableRowElement | null>(null);
+  const onFocusHandledRef = useRef(onFocusHandled);
+  onFocusHandledRef.current = onFocusHandled;
 
-  if (rows.length === 0) {
+  useEffect(() => {
+    if (focusOrderId == null) return;
+    const id = window.requestAnimationFrame(() => {
+      focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      onFocusHandledRef.current?.();
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [focusOrderId]);
+
+  if (groups.length === 0) {
     return <div className="empty">{t('emptyOrders')}</div>;
   }
 
@@ -32,40 +52,77 @@ export function OrderList({
             <th className="desc-col">{t('colDesc')}</th>
           </tr>
         </thead>
-        <tbody>
-          {rows.map((row) => {
-            const isGroup = Number(row.IsGroupOrder) === 1;
-            const pct = parseProductionPercent(row.ProductionPrc) ?? 0;
-            const pctLabel = `${formatProductionPercentValue(pct)}%`;
-            return (
-              <tr
-                key={row.Id}
-                className={row.depth > 0 ? 'is-child' : undefined}
-                onClick={() => onSelect(row.Id)}
-              >
-                <td className="order-num-cell">
-                  <div className="order-num-fill" style={{ width: `${pct}%` }} aria-hidden />
-                  <div className="order-num order-num--over-fill">
-                    <span className="order-num__icon">
-                      {isGroup ? <GroupStar title={t('groupOrder')} /> : null}
-                    </span>
-                    <span className="order-num__value">{orderIdLabel(row)}</span>
-                  </div>
-                </td>
-                <td className="percent-cell">
-                  <PercentBar percent={row.ProductionPrc} />
-                  <span className="sr-only">{pctLabel}</span>
-                </td>
-                <td className="desc-cell">
-                  <div className="order-desc">{row.Description || row.FormName || '—'}</div>
-                  <div className="muted" style={{ fontSize: '0.85rem', marginTop: '0.15rem' }}>
-                    {[row.CompanyName, row.MaterialsSymbols].filter(Boolean).join(' · ')}
-                  </div>
-                </td>
-              </tr>
+        {groups.map((group) => {
+          const motherId = group[0]?.Id;
+          const focusInGroup =
+            focusOrderId != null &&
+            group.some(
+              (r) =>
+                r.Id === focusOrderId ||
+                Number(r.IdParent) === focusOrderId ||
+                (Number(r.IsGroupOrder) === 1 && r.Id === focusOrderId),
             );
-          })}
-        </tbody>
+          // Prefer focusing the mother row of the group containing focusOrderId
+          const focusRowId = focusInGroup
+            ? group.find((r) => r.Id === focusOrderId)?.Id ??
+              group.find((r) => Number(r.IdParent) === focusOrderId)?.Id ??
+              motherId
+            : null;
+          // If focus is a child, still scroll mother (group start) to top
+          const scrollTargetId =
+            focusOrderId != null && focusInGroup
+              ? motherId
+              : null;
+
+          return (
+            <tbody key={motherId} className="order-group">
+              {group.map((row) => {
+                const isGroup = Number(row.IsGroupOrder) === 1;
+                const pct = parseProductionPercent(row.ProductionPrc) ?? 0;
+                const pctLabel = `${formatProductionPercentValue(pct)}%`;
+                const isScrollTarget = scrollTargetId != null && row.Id === scrollTargetId;
+                return (
+                  <tr
+                    key={row.Id}
+                    ref={isScrollTarget ? focusRef : undefined}
+                    className={[
+                      row.depth > 0 ? 'is-child' : '',
+                      isGroup || (row.depth === 0 && group.length > 1) ? 'is-group-mother' : '',
+                      focusRowId === row.Id || isScrollTarget ? 'is-focus-order' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined}
+                    onClick={() => onSelect(row.Id)}
+                  >
+                    <td className="order-num-cell">
+                      <div className="order-num order-num--over-fill">
+                        <span className="order-num__icon">
+                          {isGroup ? <GroupStar title={t('groupOrder')} /> : null}
+                        </span>
+                        <span className="order-num__value">{orderIdLabel(row)}</span>
+                      </div>
+                    </td>
+                    <td className="percent-cell">
+                      <PercentBar
+                        percent={row.ProductionPrc}
+                        playToken={
+                          animOrderId != null && row.Id === animOrderId ? animPlayToken : 0
+                        }
+                      />
+                      <span className="sr-only">{pctLabel}</span>
+                    </td>
+                    <td className="desc-cell">
+                      <div className="order-desc">{row.Description || row.FormName || '—'}</div>
+                      <div className="muted" style={{ fontSize: '0.85rem', marginTop: '0.15rem' }}>
+                        {[row.CompanyName, row.MaterialsSymbols].filter(Boolean).join(' · ')}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          );
+        })}
       </table>
     </div>
   );

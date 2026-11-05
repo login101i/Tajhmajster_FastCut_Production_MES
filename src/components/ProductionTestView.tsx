@@ -80,7 +80,7 @@ export function ProductionTestView({
     <div className="pt-wrap">
       <div className="pt-banner">
         <div>
-          <strong>{t('prodTestTitle')}</strong>
+          <strong>{t('prodTestTitle', { ids: idsLabel })}</strong>
           <div className="pt-banner__sub">{t('prodTestHint', { id: idsLabel })}</div>
           {devMode ? (
             <label className="pt-dev-option">

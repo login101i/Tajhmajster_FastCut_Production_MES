@@ -56,6 +56,9 @@ export const handler: Handler = async (event) => {
       .filter((n) => !Number.isNaN(n));
     const limit = Math.min(Math.max(parseInt(params.limit || '200', 10) || 200, 1), 500);
     const q = (params.q || '').trim();
+    const rawFrom = (params.fromDate || '').trim();
+    const fromDate = /^\d{4}-\d{2}-\d{2}$/.test(rawFrom) ? rawFrom : '';
+    const minId = parseInt(params.minId || '', 10) || 0;
 
     const orders = await withConnection(async (conn) => {
       const where: string[] = ['IFNULL(o.DeletedFlag, 0) = 0'];
@@ -67,6 +70,16 @@ export const handler: Handler = async (event) => {
         values.push(groupId, groupId);
       } else {
         where.push(`(${GROUP_MOTHER_SQL} OR ${STANDALONE_WITH_PATH_SQL})`);
+      }
+
+      // Main list filters (children still attached by mother Id)
+      if (fromDate && groupId <= 0) {
+        where.push('o.DateGeneration >= ?');
+        values.push(`${fromDate} 00:00:00`);
+      }
+      if (minId > 0 && groupId <= 0) {
+        where.push('o.Id >= ?');
+        values.push(minId);
       }
 
       if (states.length === 1) {

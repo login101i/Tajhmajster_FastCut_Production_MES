@@ -1,3 +1,4 @@
+import { isChildProductionsGroup } from '../../config/project';
 import type { OrderDetailResponse, OrdersResponse } from '../types';
 
 const TOKEN_KEY = 'tajhmajster_monitor_token';
@@ -33,13 +34,24 @@ async function apiGet<T>(path: string): Promise<T> {
 }
 
 export function fetchOrders(
-  opts: { state?: string; q?: string; limit?: number; groupId?: number } = {},
+  opts: {
+    state?: string;
+    q?: string;
+    limit?: number;
+    groupId?: number;
+    /** Filter roots by Orders.DateGeneration >= fromDate (YYYY-MM-DD) */
+    fromDate?: string;
+    /** Filter roots by Orders.Id >= minId */
+    minId?: number;
+  } = {},
 ) {
   const qs = new URLSearchParams();
   qs.set('state', opts.state ?? '');
   if (opts.q) qs.set('q', opts.q);
   if (opts.limit) qs.set('limit', String(opts.limit));
   if (opts.groupId) qs.set('groupId', String(opts.groupId));
+  if (opts.fromDate) qs.set('fromDate', opts.fromDate);
+  if (opts.minId) qs.set('minId', String(opts.minId));
   return apiGet<OrdersResponse>(`/api/orders?${qs.toString()}`);
 }
 
@@ -82,4 +94,57 @@ export function syncGroupChildrenPrc(
   if (opts.dryRun) qs.set('dryRun', '1');
   if (opts.createChildProductions) qs.set('createChildProductions', '1');
   return apiGet<GroupChildrenSyncResult>(`/api/sync-group-children-prc?${qs.toString()}`);
+}
+
+export type OrdersToSyncChild = {
+  id: number;
+  description: string;
+  productionPrc: string | number | null;
+  state: number;
+};
+
+export type OrdersToSyncGroup = {
+  groupId: number;
+  mother: OrdersToSyncChild;
+  children: OrdersToSyncChild[];
+};
+
+export type OrdersToSyncPrcResponse = {
+  success: boolean;
+  from: string;
+  minId?: number;
+  groups: OrdersToSyncGroup[];
+  error?: string;
+};
+
+/** Group mothers only (State=4, Id>=minId). Optional from = Productions.DateAdd filter. Standalones are never listed. */
+export function fetchOrdersToSyncPrc(opts: { from?: string; minId?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (opts.from) qs.set('from', opts.from);
+  if (opts.minId) qs.set('minId', String(opts.minId));
+  const q = qs.toString();
+  return apiGet<OrdersToSyncPrcResponse>(`/api/orders-to-sync-prc${q ? `?${q}` : ''}`);
+}
+
+/** Run sync for many groups in small batches to avoid flooding the API. */
+export async function syncGroupChildrenPrcBatch(
+  groupIds: number[],
+  opts: { dryRun?: boolean; createChildProductions?: boolean; batchSize?: number } = {},
+) {
+  const batchSize = Math.max(1, opts.batchSize ?? 8);
+  const results: GroupChildrenSyncResult[] = [];
+  for (let i = 0; i < groupIds.length; i += batchSize) {
+    const chunk = groupIds.slice(i, i + batchSize);
+    const part = await Promise.all(
+      chunk.map((groupId) =>
+        syncGroupChildrenPrc(groupId, {
+          dryRun: opts.dryRun,
+          createChildProductions:
+            opts.createChildProductions && isChildProductionsGroup(groupId),
+        }),
+      ),
+    );
+    results.push(...part);
+  }
+  return results;
 }

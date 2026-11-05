@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { LoginGate } from './components/LoginGate';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { OrderDetail } from './components/OrderDetail';
 import { OrderList } from './components/OrderList';
 import { OrdersTableView } from './components/OrdersTableView';
+import { OrdersToSyncModal } from './components/OrdersToSyncModal';
 import { ProductionBoardView } from './components/ProductionBoardView';
 import {
   ProductionTestView,
@@ -13,51 +14,80 @@ import { useI18n } from './i18n/LanguageContext';
 import {
   clearStoredToken,
   fetchOrders,
+  fetchOrdersToSyncPrc,
   getStoredToken,
   syncGroupChildrenPrc,
+  syncGroupChildrenPrcBatch,
+  type OrdersToSyncGroup,
 } from './lib/api';
 import type { AppView, OrderRow } from './types';
+import {
+  ANIM_DEMO_ORDER_ID,
+  APP_VERSION,
+  AUTO_REFRESH_MS,
+  isChildProductionsGroup,
+  MIN_PRODUCTION_ORDER_ID,
+  ORDER_STATE_ON_PRODUCTION,
+  ORDERS_GROUP_LIMIT,
+  ORDERS_LIST_LIMIT,
+  PRODUCTION_TEST_GROUP_IDS,
+  STORAGE_KEY_DEV_MODE,
+  STORAGE_KEY_PROD_TEST,
+  STORAGE_KEY_VIEW,
+  SYNC_PRC_BATCH_SIZE,
+  SYNC_PRODUCTIONS_FROM_DATE,
+} from '../config/project';
 
-const REFRESH_MS = 30_000;
-const VIEW_KEY = 'tajhmajster_view';
-const TEST_MODE_KEY = 'tajhmajster_prod_test';
-const DEV_MODE_KEY = 'tajhmajster_dev_mode';
-/** Production test group orders */
-export const PRODUCTION_TEST_GROUP_IDS = [9121, 9124] as const;
+export { MIN_PRODUCTION_ORDER_ID, PRODUCTION_TEST_GROUP_IDS };
 
 function TopBar({
+  title,
+  nav,
+  actions,
+  logout,
   devMode,
   onToggleDev,
 }: {
+  title: string;
+  nav?: ReactNode;
+  actions?: ReactNode;
+  logout?: ReactNode;
   devMode: boolean;
   onToggleDev: () => void;
 }) {
-  const { t } = useI18n();
   return (
     <header className="topbar">
-      <div className="logo-badge" aria-label="LIGNUM LINK">
-        <span className="logo-badge__mark">LL</span>
-        Lignum Link
+      <div className="topbar__left">
+        <div className="logo-badge" aria-label="LIGNUM LINK">
+          <span className="logo-badge__mark">LL</span>
+          Lignum Link
+        </div>
+        <div className="topbar__title">{title}</div>
+        {actions ? <div className="topbar__actions">{actions}</div> : null}
       </div>
+      {nav ? <div className="topbar__center">{nav}</div> : null}
       <div className="topbar__right">
-        <div className="topbar__title">{t('appSubtitle')}</div>
         <LanguageSwitcher />
         <button
           type="button"
           className={`dev-toggle ${devMode ? 'dev-toggle--on' : ''}`}
           onClick={onToggleDev}
           aria-pressed={devMode}
-          title={t('devModeTitle')}
+          title="DEV"
         >
           DEV
         </button>
+        {logout}
+        <span className="app-version" title={APP_VERSION}>
+          {APP_VERSION}
+        </span>
       </div>
     </header>
   );
 }
 
 function readView(): AppView {
-  const raw = sessionStorage.getItem(VIEW_KEY);
+  const raw = sessionStorage.getItem(STORAGE_KEY_VIEW);
   if (raw === '1' || raw === '2' || raw === '3') return Number(raw) as AppView;
   return 1;
 }
@@ -70,12 +100,13 @@ export default function App() {
   });
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [view, setView] = useState<AppView>(() => readView());
-  const [prodTest, setProdTest] = useState(
-    () => sessionStorage.getItem(TEST_MODE_KEY) === '1',
-  );
   const [devMode, setDevMode] = useState(
-    () => sessionStorage.getItem(DEV_MODE_KEY) === '1',
+    () => sessionStorage.getItem(STORAGE_KEY_DEV_MODE) === '1',
   );
+  const [prodTest, setProdTest] = useState(() => {
+    if (sessionStorage.getItem(STORAGE_KEY_DEV_MODE) !== '1') return false;
+    return sessionStorage.getItem(STORAGE_KEY_PROD_TEST) === '1';
+  });
   /** DEV-only: upsert child Productions for group 9124 (off by default). */
   const [createChildProductions, setCreateChildProductions] = useState(false);
   const createChildProductionsRef = useRef(createChildProductions);
@@ -86,18 +117,47 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [syncByGroup, setSyncByGroup] = useState<Record<number, SyncResult>>({});
+  const [syncPreviewOpen, setSyncPreviewOpen] = useState(false);
+  const [syncPreviewLoading, setSyncPreviewLoading] = useState(false);
+  const [syncPreviewGroups, setSyncPreviewGroups] = useState<OrdersToSyncGroup[]>([]);
+  const [focusOrderId, setFocusOrderId] = useState<number | null>(null);
+  const [refreshInSec, setRefreshInSec] = useState(Math.ceil(AUTO_REFRESH_MS / 1000));
+  const [animPlayToken, setAnimPlayToken] = useState(0);
+
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const devModeRef = useRef(devMode);
+  devModeRef.current = devMode;
+  const prodTestRef = useRef(prodTest);
+  prodTestRef.current = prodTest;
 
   const selectView = (next: AppView) => {
     setView(next);
-    sessionStorage.setItem(VIEW_KEY, String(next));
+    sessionStorage.setItem(STORAGE_KEY_VIEW, String(next));
     setSelectedId(null);
+    setFocusOrderId(null);
+  };
+
+  const openOrderInView1 = (orderId: number) => {
+    setSelectedId(null);
+    setView(1);
+    sessionStorage.setItem(STORAGE_KEY_VIEW, '1');
+    setFocusOrderId(orderId);
   };
 
   const toggleDevMode = () => {
     setDevMode((prev) => {
       const next = !prev;
-      sessionStorage.setItem(DEV_MODE_KEY, next ? '1' : '0');
-      if (!next) setCreateChildProductions(false);
+      sessionStorage.setItem(STORAGE_KEY_DEV_MODE, next ? '1' : '0');
+      if (!next) {
+        setCreateChildProductions(false);
+        setSyncPreviewOpen(false);
+        if (prodTestRef.current) {
+          sessionStorage.setItem(STORAGE_KEY_PROD_TEST, '0');
+          setProdTest(false);
+          setSyncByGroup({});
+        }
+      }
       return next;
     });
   };
@@ -105,60 +165,132 @@ export default function App() {
   const toggleProdTest = () => {
     setProdTest((prev) => {
       const next = !prev;
-      sessionStorage.setItem(TEST_MODE_KEY, next ? '1' : '0');
+      sessionStorage.setItem(STORAGE_KEY_PROD_TEST, next ? '1' : '0');
       setSelectedId(null);
       setSyncByGroup({});
       setCreateChildProductions(false);
+      setSyncPreviewOpen(false);
       return next;
     });
   };
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(
+    async (opts: { writePrc?: boolean } = {}) => {
+      const writePrc = opts.writePrc === true;
+      setLoading(true);
+      setError('');
+      try {
+        if (prodTestRef.current) {
+          const syncs = await Promise.all(
+            PRODUCTION_TEST_GROUP_IDS.map((groupId) =>
+              syncGroupChildrenPrc(groupId, {
+                dryRun: false,
+                createChildProductions:
+                  createChildProductionsRef.current &&
+                  isChildProductionsGroup(groupId),
+              }),
+            ),
+          );
+          const nextSync: Record<number, SyncResult> = {};
+          for (const s of syncs) nextSync[s.groupId] = s;
+          setSyncByGroup(nextSync);
+
+          const orderLists = await Promise.all(
+            PRODUCTION_TEST_GROUP_IDS.map((groupId) =>
+              fetchOrders({ state: '', groupId, limit: ORDERS_GROUP_LIMIT }),
+            ),
+          );
+          const byId = new Map<number, OrderRow>();
+          for (const res of orderLists) {
+            for (const o of res.orders || []) byId.set(o.Id, o);
+          }
+          setOrders([...byId.values()]);
+        } else {
+          if (
+            writePrc &&
+            devModeRef.current &&
+            viewRef.current === 1
+          ) {
+            const preview = await fetchOrdersToSyncPrc({
+              from: SYNC_PRODUCTIONS_FROM_DATE,
+              minId: MIN_PRODUCTION_ORDER_ID,
+            });
+            const groupIds = (preview.groups || []).map((g) => g.groupId);
+            if (groupIds.length > 0) {
+              await syncGroupChildrenPrcBatch(groupIds, {
+                dryRun: false,
+                batchSize: SYNC_PRC_BATCH_SIZE,
+              });
+            }
+          }
+
+          const res = await fetchOrders({
+            state: String(ORDER_STATE_ON_PRODUCTION),
+            limit: ORDERS_LIST_LIMIT,
+            minId: MIN_PRODUCTION_ORDER_ID,
+          });
+          setOrders(res.orders || []);
+          setSyncByGroup({});
+        }
+        setUpdatedAt(new Date());
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t('fetchError');
+        setError(message);
+        if (message.toLowerCase().includes('unauthorized')) {
+          clearStoredToken();
+          setUnlocked(false);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [t],
+  );
+
+  const openSyncPreview = useCallback(async () => {
+    setSyncPreviewOpen(true);
+    setSyncPreviewLoading(true);
     setError('');
     try {
-      if (prodTest) {
-        // Refresh writes child Orders.ProductionPrc from checklist (mothers unchanged)
-        const syncs = await Promise.all(
-          PRODUCTION_TEST_GROUP_IDS.map((groupId) =>
-            syncGroupChildrenPrc(groupId, {
-              dryRun: false,
-              createChildProductions:
-                createChildProductionsRef.current && groupId === 9124,
-            }),
-          ),
-        );
-        const nextSync: Record<number, SyncResult> = {};
-        for (const s of syncs) nextSync[s.groupId] = s;
-        setSyncByGroup(nextSync);
-
-        const orderLists = await Promise.all(
-          PRODUCTION_TEST_GROUP_IDS.map((groupId) =>
-            fetchOrders({ state: '', groupId, limit: 50 }),
-          ),
-        );
-        const byId = new Map<number, OrderRow>();
-        for (const res of orderLists) {
-          for (const o of res.orders || []) byId.set(o.Id, o);
-        }
-        setOrders([...byId.values()]);
-      } else {
-        const res = await fetchOrders({ state: '', limit: 300 });
-        setOrders(res.orders || []);
-        setSyncByGroup({});
-      }
-      setUpdatedAt(new Date());
+      const preview = await fetchOrdersToSyncPrc({
+        from: SYNC_PRODUCTIONS_FROM_DATE,
+        minId: MIN_PRODUCTION_ORDER_ID,
+      });
+      setSyncPreviewGroups(preview.groups || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : t('fetchError');
       setError(message);
-      if (message.toLowerCase().includes('unauthorized')) {
-        clearStoredToken();
-        setUnlocked(false);
-      }
+      setSyncPreviewOpen(false);
     } finally {
-      setLoading(false);
+      setSyncPreviewLoading(false);
     }
-  }, [t, prodTest]);
+  }, [t]);
+
+  const updateOneGroupPrc = useCallback(
+    async (groupId: number) => {
+      try {
+        setError('');
+        await syncGroupChildrenPrc(groupId, { dryRun: false });
+        const preview = await fetchOrdersToSyncPrc({
+          from: SYNC_PRODUCTIONS_FROM_DATE,
+          minId: MIN_PRODUCTION_ORDER_ID,
+        });
+        setSyncPreviewGroups(preview.groups || []);
+        const res = await fetchOrders({
+          state: String(ORDER_STATE_ON_PRODUCTION),
+          limit: ORDERS_LIST_LIMIT,
+          minId: MIN_PRODUCTION_ORDER_ID,
+        });
+        setOrders(res.orders || []);
+        setUpdatedAt(new Date());
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t('fetchError');
+        setError(message);
+        throw err;
+      }
+    },
+    [t],
+  );
 
   const updateChildrenPrc = useCallback(async () => {
     setSyncing(true);
@@ -169,7 +301,8 @@ export default function App() {
           syncGroupChildrenPrc(groupId, {
             dryRun: false,
             createChildProductions:
-              createChildProductionsRef.current && groupId === 9124,
+              createChildProductionsRef.current &&
+              isChildProductionsGroup(groupId),
           }),
         ),
       );
@@ -179,7 +312,7 @@ export default function App() {
 
       const orderLists = await Promise.all(
         PRODUCTION_TEST_GROUP_IDS.map((groupId) =>
-          fetchOrders({ state: '', groupId, limit: 50 }),
+          fetchOrders({ state: '', groupId, limit: ORDERS_GROUP_LIMIT }),
         ),
       );
       const byId = new Map<number, OrderRow>();
@@ -198,20 +331,140 @@ export default function App() {
 
   useEffect(() => {
     if (!unlocked || selectedId != null) return;
-    void load();
-    // Auto-refresh only outside production test (30s later for test mode)
+    // Initial / view change: no DB write of % (auto-refresh also read-only)
+    void load({ writePrc: false });
     if (prodTest) return;
-    const timer = window.setInterval(() => void load(), REFRESH_MS);
-    return () => window.clearInterval(timer);
-  }, [unlocked, selectedId, load, prodTest]);
+
+    const totalSec = Math.ceil(AUTO_REFRESH_MS / 1000);
+    setRefreshInSec(totalSec);
+    let left = totalSec;
+
+    const tick = window.setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        left = totalSec;
+        void load({ writePrc: false });
+      }
+      setRefreshInSec(left);
+    }, 1000);
+
+    return () => window.clearInterval(tick);
+  }, [unlocked, selectedId, load, prodTest, view]);
 
   if (needsGate && !unlocked) {
     return <LoginGate onUnlock={() => setUnlocked(true)} />;
   }
 
+  const showOrdersToSync = devMode && !prodTest && view === 1;
+
+  const headerNav =
+    selectedId == null && !prodTest ? (
+      <div className="view-switch" role="group" aria-label={t('viewsLabel')}>
+        <button
+          type="button"
+          className={view === 1 ? 'active' : ''}
+          onClick={() => selectView(1)}
+        >
+          {t('view1')}
+        </button>
+        <button
+          type="button"
+          className={view === 2 ? 'active' : ''}
+          onClick={() => selectView(2)}
+        >
+          {t('view2')}
+        </button>
+        <button
+          type="button"
+          className={view === 3 ? 'active' : ''}
+          onClick={() => selectView(3)}
+        >
+          {t('view3')}
+        </button>
+      </div>
+    ) : null;
+
+  const headerActions =
+    selectedId == null ? (
+      <>
+        {devMode ? (
+          <button
+            type="button"
+            className={`btn ${prodTest ? '' : 'btn-ghost'} prod-test-btn`}
+            onClick={toggleProdTest}
+          >
+            {prodTest ? t('prodTestOff') : t('prodTestOn')}
+          </button>
+        ) : null}
+        <span className="refresh-with-countdown">
+          <button
+            className="btn"
+            type="button"
+            onClick={() =>
+              void load({
+                writePrc: Boolean(devMode && !prodTest && view === 1),
+              })
+            }
+            disabled={loading}
+          >
+            {loading ? t('refreshing') : t('refresh')}
+          </button>
+          {devMode && !prodTest ? (
+            <span className="refresh-countdown" aria-live="polite">
+              {refreshInSec}s
+            </span>
+          ) : null}
+        </span>
+        {showOrdersToSync ? (
+          <button
+            className="btn btn-ghost"
+            type="button"
+            onClick={() => void openSyncPreview()}
+            disabled={loading || syncPreviewLoading}
+          >
+            {t('ordersToSync')}
+          </button>
+        ) : null}
+        {devMode && !prodTest && view === 1 ? (
+          <button
+            className="btn btn-ghost"
+            type="button"
+            onClick={() => {
+              setAnimPlayToken((n) => n + 1);
+              setFocusOrderId(ANIM_DEMO_ORDER_ID);
+            }}
+            title={`#${ANIM_DEMO_ORDER_ID}`}
+          >
+            {t('playAnim')}
+          </button>
+        ) : null}
+      </>
+    ) : null;
+
+  const headerLogout =
+    selectedId == null ? (
+      <button
+        className="btn btn-ghost"
+        type="button"
+        onClick={() => {
+          clearStoredToken();
+          setUnlocked(false);
+        }}
+      >
+        {t('logout')}
+      </button>
+    ) : null;
+
   return (
     <>
-      <TopBar devMode={devMode} onToggleDev={toggleDevMode} />
+      <TopBar
+        title={t('appSubtitle')}
+        nav={headerNav}
+        actions={headerActions}
+        logout={headerLogout}
+        devMode={devMode}
+        onToggleDev={toggleDevMode}
+      />
       <div className={`app-shell ${view === 2 && !prodTest ? 'app-shell--wide' : ''}`}>
         {selectedId != null ? (
           <OrderDetail
@@ -221,70 +474,21 @@ export default function App() {
           />
         ) : (
           <>
-            <div className="toolbar">
-              {!prodTest ? (
-                <div className="view-switch" role="group" aria-label={t('viewsLabel')}>
-                  <button
-                    type="button"
-                    className={view === 1 ? 'active' : ''}
-                    onClick={() => selectView(1)}
-                  >
-                    {t('view1')}
-                  </button>
-                  <button
-                    type="button"
-                    className={view === 2 ? 'active' : ''}
-                    onClick={() => selectView(2)}
-                  >
-                    {t('view2')}
-                  </button>
-                  <button
-                    type="button"
-                    className={view === 3 ? 'active' : ''}
-                    onClick={() => selectView(3)}
-                  >
-                    {t('view3')}
-                  </button>
-                </div>
-              ) : null}
-              <button
-                type="button"
-                className={`btn ${prodTest ? '' : 'btn-ghost'} prod-test-btn`}
-                onClick={toggleProdTest}
-              >
-                {prodTest ? t('prodTestOff') : t('prodTestOn')}
-              </button>
-              <button className="btn" type="button" onClick={() => void load()} disabled={loading}>
-                {loading ? t('refreshing') : t('refresh')}
-              </button>
-              <button
-                className="btn btn-ghost"
-                type="button"
-                onClick={() => {
-                  clearStoredToken();
-                  setUnlocked(false);
-                }}
-              >
-                {t('logout')}
-              </button>
-              <span className="meta">
-                {t('ordersCount', { n: orders.length })}
-                {updatedAt ? ` · ${updatedAt.toLocaleTimeString(locale)}` : ''}
-                {devMode ? ` · ${t('devModeOn')}` : ''}
-              </span>
-            </div>
+            {devMode ? (
+              <div className="toolbar toolbar--meta">
+                <span className="meta">
+                  {t('ordersCount', { n: orders.length })}
+                  {updatedAt ? ` · ${updatedAt.toLocaleTimeString(locale)}` : ''}
+                  {` · ${t('devModeOn')}`}
+                </span>
+              </div>
+            ) : null}
 
-            <p className="lede">
-              {prodTest
-                ? t('ledeProdTest')
-                : view === 1
-                  ? t('ledeView1')
-                  : view === 2
-                    ? t('ledeView2')
-                    : t('ledeView3')}
-            </p>
+            {prodTest ? <p className="lede">{t('ledeProdTest')}</p> : null}
 
-            <div className={`panel ${view === 3 && !prodTest ? 'panel--flat' : ''}`}>
+            <div
+              className={`panel panel--flush-top ${view === 3 && !prodTest ? 'panel--flat' : ''}`}
+            >
               {error ? <div className="error">{error}</div> : null}
               {!error && prodTest ? (
                 <ProductionTestView
@@ -300,18 +504,33 @@ export default function App() {
                 />
               ) : null}
               {!error && !prodTest && view === 1 ? (
-                <OrderList orders={orders} onSelect={setSelectedId} />
+                <OrderList
+                  orders={orders}
+                  onSelect={setSelectedId}
+                  focusOrderId={focusOrderId}
+                  onFocusHandled={() => setFocusOrderId(null)}
+                  animOrderId={ANIM_DEMO_ORDER_ID}
+                  animPlayToken={animPlayToken}
+                />
               ) : null}
               {!error && !prodTest && view === 2 ? (
                 <OrdersTableView orders={orders} onSelect={setSelectedId} />
               ) : null}
               {!error && !prodTest && view === 3 ? (
-                <ProductionBoardView orders={orders} onSelect={setSelectedId} />
+                <ProductionBoardView orders={orders} onSelect={openOrderInView1} />
               ) : null}
             </div>
           </>
         )}
       </div>
+
+      <OrdersToSyncModal
+        open={syncPreviewOpen}
+        loading={syncPreviewLoading}
+        groups={syncPreviewGroups}
+        onClose={() => setSyncPreviewOpen(false)}
+        onUpdateGroup={updateOneGroupPrc}
+      />
     </>
   );
 }

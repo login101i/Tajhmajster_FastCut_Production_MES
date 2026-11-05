@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { FlagIcon } from './FlagIcon';
 import { LANGS, localeFor, t, type Lang, type MessageKey } from './messages';
 
 const STORAGE_KEY = 'tajhmajster_lang';
@@ -67,10 +68,8 @@ export function LanguageSwitcher({ className = '' }: { className?: string }) {
           aria-pressed={lang === item.code}
           onClick={() => setLang(item.code)}
         >
-          <span className="lang-switch__flag" aria-hidden>
-            {item.flag}
-          </span>
-          <span className="lang-switch__code">{item.label}</span>
+          <FlagIcon code={item.code} className="lang-switch__flag" />
+          <span className="sr-only">{item.label}</span>
         </button>
       ))}
     </div>

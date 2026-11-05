@@ -34,7 +34,7 @@ export function ProductionBoardView({
   onSelect: (id: number) => void;
 }) {
   const { t } = useI18n();
-  const board = pickBoardOrders(orders, 10);
+  const board = pickBoardOrders(orders);
   const packing = board.filter((o) => {
     const p = pctOf(o);
     return p >= 80 && p < 100;

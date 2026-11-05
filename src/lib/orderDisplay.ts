@@ -1,3 +1,7 @@
+import {
+  MIN_PRODUCTION_ORDER_ID,
+  ORDER_STATE_ON_PRODUCTION,
+} from '../../config/project';
 import type { OrderRow } from '../types';
 import { parseProductionPercent } from './percent';
 
@@ -101,25 +105,40 @@ export function parseOrderDate(value: string | null | undefined): Date | null {
 }
 
 /**
- * View 3: orders in production this week, else earliest 10 with a path / in realization.
+ * View 3: root orders in Realizacja with Id >= MIN_PRODUCTION_ORDER_ID.
  */
-export function pickBoardOrders(orders: OrderRow[], limit = 10): OrderRow[] {
+export function pickBoardOrders(orders: OrderRow[], limit = 200): OrderRow[] {
   const roots = orders.filter(
     (o) => Number(o.IsGroupOrder) === 1 || !Number(o.IdParent),
   );
-  const weekStart = startOfWeek();
-  const inWeek = roots.filter((o) => {
-    const d = parseOrderDate(o.DateExecution) || parseOrderDate(o.DateGeneration);
-    return d != null && d >= weekStart && Number(o.State) === 4;
-  });
-  const pool = (inWeek.length > 0 ? inWeek : roots.filter((o) => Number(o.State) === 4 || pctOf(o) > 0))
+  const pool = roots
+    .filter(
+      (o) =>
+        Number(o.State) === ORDER_STATE_ON_PRODUCTION &&
+        o.Id >= MIN_PRODUCTION_ORDER_ID,
+    )
     .slice()
-    .sort((a, b) => {
-      const da = parseOrderDate(a.DateExecution) || parseOrderDate(a.DateGeneration);
-      const db = parseOrderDate(b.DateExecution) || parseOrderDate(b.DateGeneration);
-      const ta = da?.getTime() ?? a.Id;
-      const tb = db?.getTime() ?? b.Id;
-      return ta - tb;
-    });
+    .sort((a, b) => a.Id - b.Id);
   return pool.slice(0, limit);
+}
+
+/** Group display rows into mother+children blocks for View 1 spacing. */
+export function buildDisplayGroups(
+  orders: OrderRow[],
+): Array<Array<OrderRow & { depth: number }>> {
+  const rows = buildDisplayRows(orders);
+  const groups: Array<Array<OrderRow & { depth: number }>> = [];
+  let current: Array<OrderRow & { depth: number }> = [];
+
+  for (const row of rows) {
+    if (row.depth === 0) {
+      if (current.length) groups.push(current);
+      current = [row];
+    } else {
+      if (!current.length) current = [];
+      current.push(row);
+    }
+  }
+  if (current.length) groups.push(current);
+  return groups;
 }
