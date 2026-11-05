@@ -1,5 +1,6 @@
 import type { Handler } from '@netlify/functions';
 import type { RowDataPacket } from 'mysql2';
+import { ORDER_STATE_ON_PRODUCTION } from '../../config/project';
 import { assertMonitorAccess, corsHeaders } from './_lib/auth';
 import { withConnection } from './_lib/db';
 
@@ -80,14 +81,23 @@ export const handler: Handler = async (event) => {
       if (minId > 0 && groupId <= 0) {
         where.push('o.Id >= ?');
         values.push(minId);
+        // Monitor: pokaż gdy Realizacja (4) LUB ProductionPrc > 0 (dowolny stan)
+        where.push(`(
+          o.State = ?
+          OR CAST(IFNULL(NULLIF(TRIM(CAST(o.ProductionPrc AS CHAR)), ''), '0') AS DECIMAL(12,4)) > 0
+        )`);
+        values.push(ORDER_STATE_ON_PRODUCTION);
       }
 
-      if (states.length === 1) {
-        where.push('o.State = ?');
-        values.push(states[0]);
-      } else if (states.length > 1) {
-        where.push(`o.State IN (${states.map(() => '?').join(',')})`);
-        values.push(...states);
+      // Jawny filtr state=… tylko gdy nie ma minId (np. inne wywołania)
+      if (minId <= 0 || groupId > 0) {
+        if (states.length === 1) {
+          where.push('o.State = ?');
+          values.push(states[0]);
+        } else if (states.length > 1) {
+          where.push(`o.State IN (${states.map(() => '?').join(',')})`);
+          values.push(...states);
+        }
       }
 
       if (q) {
@@ -114,12 +124,21 @@ export const handler: Handler = async (event) => {
           o.OnlineOrderId,
           o.DateGeneration,
           o.DateExecution,
+          o.DateMod,
+          GREATEST(
+            COALESCE(o.DateMod, '1000-01-01 00:00:00'),
+            COALESCE(
+              (SELECT MAX(p.DateAdd) FROM Productions p WHERE p.OrderId = o.Id),
+              '1000-01-01 00:00:00'
+            )
+          ) AS LastActivityAt,
           o.ProductionPrc,
           o.IsGroupOrder,
           o.IdParent,
           o.PriorityStr,
           o.MaterialsSymbols,
           o.FlagState,
+          o.FlagOut,
           o.JobCutFlag,
           o.JobCutNumber,
           o.MaterialsGroupFlag,

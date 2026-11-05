@@ -34,7 +34,10 @@ Tam ustawiasz m.in. interwał odświeżania, min. Id, grupy testowe, animację D
 |-------|----------------------|
 | `APP_VERSION` | Napis wersji w prawym górnym rogu (`V.1.06`) |
 | `AUTO_REFRESH_MS` | Auto-odświeżanie: `30_000` = 30 s, `60_000` = 60 s |
-| `ORDER_STATE_ON_PRODUCTION` | Stan „na produkcji” (`4`) |
+| `AUTO_REFRESH_HOUR_FROM` / `TO` | Okno godzin auto-refresh (domyślnie 6–18 czasu lokalnego) |
+| `ZERO_PCT_IDLE_DROP_MS` | Po tym czasie zlecenie z 0% spada w dół listy widoku 1 (`24h`) |
+| `ORDER_STATE_ON_PRODUCTION` | Realizacja (`4`) — widać też przy 0% |
+| `ORDER_STATE_REJECTED` | Odrzucone (`2`) — bordowy + biały tekst w widoku 1/3 |
 | `MIN_PRODUCTION_ORDER_ID` | Lista + sync grup od tego `Orders.Id` (`8700`) |
 | `SYNC_PRODUCTIONS_FROM_DATE` | Opcjonalny filtr `Productions.DateAdd` (`''` = wyłączony) |
 | `PRODUCTION_TEST_GROUP_IDS` | Grupy Production test (`9121`, `9124`) |
@@ -45,7 +48,7 @@ Po zmianie FE: odśwież przeglądarkę. Po zmianie używanej przez API: zrestar
 
 ## Reguła aktualizacji % (ważne)
 
-Zakres: zlecenia **wysłane na produkcję** (`State = ORDER_STATE_ON_PRODUCTION`) oraz **`Orders.Id >= MIN_PRODUCTION_ORDER_ID`**.
+Zakres: **`Orders.Id >= MIN_PRODUCTION_ORDER_ID`** oraz (`State = 4` Realizacja **lub** `ProductionPrc > 0`). Status **2 = Odrzucone** (bordowy UI).
 
 | Typ zlecenia | Co robi monitor |
 |--------------|-----------------|
@@ -111,9 +114,9 @@ SUM(QuantityStamp) / SUM(Quantity) * 100
 
 | Widok | Opis |
 |-------|------|
-| 1 | Tabela: nr + Status `%` + opis; grupy z odstępem 15px |
-| 2 | Gęsta tabela (jak Orders / OptiCut) |
-| 3 | Karty; klik → Widok 1 + scroll do grupy |
+| 1 (UI) | Lista/tabela; Realizacja lub `% > 0`; sort: w toku → świeże 0% → stare 0% → ≥100%; State=2 bordowy |
+| 2 (UI) | Tablica kafelków (wewnętrznie `view === 3`); `% > 0`; **Do odbioru**; grupa = szara poświata |
+| _(ukryty)_ | Stary widok 2 = gęsta tabela OptiCut — logika w kodzie, brak przycisku w headerze |
 
 Header: logo, **Production**, Odśwież (+ odliczanie w DEV), Widok 1/2/3 (środek), flagi + DEV + Wyloguj.
 
@@ -127,6 +130,7 @@ Licznik „N zleceń” — tylko w DEV.
 | Zlecenia do aktualizacji | Popup **tylko grup**; Update per matka |
 | Odśwież (Widok 1 + DEV) | Sync `%` dzieci wszystkich kandydatów-grup, potem reload listy (pojedyncze = odczyt) |
 | Auto-refresh | Tylko odczyt listy — **bez** zapisu `%` |
+| Stop refresh | Przycisk obok Odśwież — pauzuje timer (działa też na Netlify; stan w przeglądarce) |
 | Play animation | Test animacji paska na `ANIM_DEMO_ORDER_ID` |
 | Checkbox Productions | Opcjonalnie INSERT/UPDATE `Productions` dzieci (grupy z `CHILD_PRODUCTIONS_*`) |
 

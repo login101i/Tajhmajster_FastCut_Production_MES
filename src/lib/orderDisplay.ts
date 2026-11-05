@@ -1,9 +1,12 @@
 import {
   MIN_PRODUCTION_ORDER_ID,
   ORDER_STATE_ON_PRODUCTION,
+  ORDER_STATE_REJECTED,
+  ZERO_PCT_IDLE_DROP_MS,
 } from '../../config/project';
 import type { OrderRow } from '../types';
 import { parseProductionPercent } from './percent';
+import { activityTimestamp } from './recentGains';
 
 export function orderIdLabel(row: OrderRow): string {
   const parent = Number(row.IdParent) || 0;
@@ -14,7 +17,62 @@ export function orderIdLabel(row: OrderRow): string {
   return String(row.Id);
 }
 
-export function buildDisplayRows(orders: OrderRow[]): Array<OrderRow & { depth: number }> {
+/** Max % w grupie (matka + dzieci) — matka często ma 0 przy postępie dzieci. */
+export function groupProgressPct(root: OrderRow, kids: OrderRow[] = []): number {
+  return Math.max(pctOf(root), 0, ...kids.map(pctOf));
+}
+
+export function isDelivered(row: OrderRow): boolean {
+  return Number(row.FlagOut) === 1;
+}
+
+/** Data wysłania na produkcję (preferuj DateExecution). */
+export function productionSentAt(row: OrderRow): number {
+  const raw = row.DateExecution || row.DateMod || row.DateGeneration || '';
+  const t = Date.parse(String(raw).replace(' ', 'T'));
+  return Number.isFinite(t) ? t : 0;
+}
+
+/**
+ * Widok 1 — priorytet listy (niższy = wyżej):
+ * 0 = w toku (0 < % < 100)
+ * 1 = 0%, wysłane < 24 h (świeże na produkcji)
+ * 2 = 0%, bez ruchu > 24 h (spadają w dół)
+ * 3 = ukończone (≥ 100%) / wydane
+ */
+export function view1ListTier(
+  root: OrderRow,
+  kids: OrderRow[] = [],
+  now = Date.now(),
+): number {
+  const p = groupProgressPct(root, kids);
+  if (p > 0 && p < 100) return 0;
+  if (p >= 100 || isDelivered(root)) return 3;
+  const sent = Math.max(
+    productionSentAt(root),
+    ...kids.map(productionSentAt),
+  );
+  if (sent > 0 && now - sent <= ZERO_PCT_IDLE_DROP_MS) return 1;
+  return 2;
+}
+
+/** Najnowsza aktywność grupy = max(matka, dzieci, lokalne przyrosty %). */
+function groupActivityTs(
+  root: OrderRow,
+  kids: OrderRow[],
+  gainTimes?: Map<number, number>,
+): number {
+  let max = activityTimestamp(root, gainTimes);
+  for (const kid of kids) {
+    max = Math.max(max, activityTimestamp(kid, gainTimes));
+  }
+  return max;
+}
+
+export function buildDisplayRows(
+  orders: OrderRow[],
+  gainTimes?: Map<number, number>,
+): Array<OrderRow & { depth: number }> {
   const byId = new Map(orders.map((o) => [o.Id, o]));
   const children = new Map<number, OrderRow[]>();
   const roots: OrderRow[] = [];
@@ -35,7 +93,17 @@ export function buildDisplayRows(orders: OrderRow[]): Array<OrderRow & { depth: 
     if (!placedAsChild.has(o.Id)) roots.push(o);
   }
 
-  roots.sort((a, b) => b.Id - a.Id);
+  const now = Date.now();
+  roots.sort((a, b) => {
+    const kidsA = children.get(a.Id) || [];
+    const kidsB = children.get(b.Id) || [];
+    const tier = view1ListTier(a, kidsA, now) - view1ListTier(b, kidsB, now);
+    if (tier !== 0) return tier;
+    const act =
+      groupActivityTs(b, kidsB, gainTimes) - groupActivityTs(a, kidsA, gainTimes);
+    if (act !== 0) return act;
+    return b.Id - a.Id;
+  });
 
   const out: Array<OrderRow & { depth: number }> = [];
   for (const root of roots) {
@@ -49,14 +117,25 @@ export function buildDisplayRows(orders: OrderRow[]): Array<OrderRow & { depth: 
 export function stateStatusLabel(state: number): string {
   const map: Record<number, string> = {
     [-1]: 'Edycja/korekta (-1)',
-    0: 'Nowe (0)',
     1: 'Pobrane (1)',
-    2: 'Oferta (2)',
-    3: 'Zamówione (3)',
+    2: 'Odrzucone (2)',
+    3: 'Wycena (3)',
     4: 'Realizacja (4)',
-    5: 'Zakończone (5)',
+    5: 'Do odbioru (5)',
+    10: 'Oczekiwanie na wpłatę (10)',
   };
   return map[state] ?? `Status (${state})`;
+}
+
+export function isRejected(row: OrderRow): boolean {
+  return Number(row.State) === ORDER_STATE_REJECTED;
+}
+
+/** Widoczne na monitorze: Realizacja LUB ProductionPrc > 0. */
+export function isMonitorVisibleRoot(root: OrderRow, kids: OrderRow[] = []): boolean {
+  if (Number(root.State) === ORDER_STATE_ON_PRODUCTION) return true;
+  if (pctOf(root) > 0) return true;
+  return kids.some((k) => pctOf(k) > 0);
 }
 
 export function optimizeStatusLabel(v: number | null | undefined): string {
@@ -108,25 +187,109 @@ export function parseOrderDate(value: string | null | undefined): Date | null {
  * View 3: root orders in Realizacja with Id >= MIN_PRODUCTION_ORDER_ID.
  */
 export function pickBoardOrders(orders: OrderRow[], limit = 200): OrderRow[] {
+  return buildBoardClusters(orders, limit).map((c) => c.root);
+}
+
+export type BoardCluster = {
+  rootId: number;
+  root: OrderRow;
+  isGroup: boolean;
+  /** Mother first, then children (Id ASC). Standalone = [root]. */
+  members: OrderRow[];
+  /** Lane placement uses mother / standalone ProductionPrc. */
+  pct: number;
+};
+
+/** View 3: ma postęp (ProductionPrc > 0). */
+export function isProductionStarted(row: OrderRow): boolean {
+  return pctOf(row) > 0;
+}
+
+/** View 3 aktywne: tylko ProductionPrc > 0 i jeszcze nie 100%. */
+export function isBoardInProgress(_root: OrderRow, pct: number): boolean {
+  return pct > 0 && pct < 100;
+}
+
+/** View 3 do odbioru: 100% i jeszcze nie wydane (FlagOut = 0). */
+export function isBoardPickup(root: OrderRow, pct: number): boolean {
+  return pct >= 100 && !isDelivered(root);
+}
+
+/**
+ * View 3 clusters: group mother + children stay together; standalones alone.
+ * State=produkcja, Id>=MIN, % > 0; FlagOut=1 (dostarczone) pomijamy.
+ */
+export function buildBoardClusters(
+  orders: OrderRow[],
+  limit = 200,
+): BoardCluster[] {
+  const byId = new Map(orders.map((o) => [o.Id, o]));
+  const childrenByParent = new Map<number, OrderRow[]>();
+
+  for (const o of orders) {
+    const parent = Number(o.IdParent) || 0;
+    if (parent > 0 && byId.has(parent)) {
+      const list = childrenByParent.get(parent) || [];
+      list.push(o);
+      childrenByParent.set(parent, list);
+    }
+  }
+
   const roots = orders.filter(
     (o) => Number(o.IsGroupOrder) === 1 || !Number(o.IdParent),
   );
   const pool = roots
-    .filter(
-      (o) =>
-        Number(o.State) === ORDER_STATE_ON_PRODUCTION &&
-        o.Id >= MIN_PRODUCTION_ORDER_ID,
-    )
+    .filter((o) => o.Id >= MIN_PRODUCTION_ORDER_ID && !isDelivered(o))
     .slice()
     .sort((a, b) => a.Id - b.Id);
-  return pool.slice(0, limit);
+
+  const clusters: BoardCluster[] = [];
+
+  for (const root of pool) {
+    if (clusters.length >= limit) break;
+
+    const isGroup = Number(root.IsGroupOrder) === 1;
+    const kids = isGroup
+      ? (childrenByParent.get(root.Id) || []).slice().sort((a, b) => a.Id - b.Id)
+      : [];
+
+    if (!isGroup) {
+      if (!isProductionStarted(root)) continue;
+      clusters.push({
+        rootId: root.Id,
+        root,
+        isGroup: false,
+        members: [root],
+        pct: pctOf(root),
+      });
+      continue;
+    }
+
+    // Widok 3: tylko kafelki z ProductionPrc > 0
+    const members = [
+      ...(isProductionStarted(root) ? [root] : []),
+      ...kids.filter(isProductionStarted),
+    ];
+    if (members.length === 0) continue;
+
+    clusters.push({
+      rootId: root.Id,
+      root,
+      isGroup: true,
+      members,
+      pct: groupProgressPct(root, kids),
+    });
+  }
+
+  return clusters;
 }
 
 /** Group display rows into mother+children blocks for View 1 spacing. */
 export function buildDisplayGroups(
   orders: OrderRow[],
+  gainTimes?: Map<number, number>,
 ): Array<Array<OrderRow & { depth: number }>> {
-  const rows = buildDisplayRows(orders);
+  const rows = buildDisplayRows(orders, gainTimes);
   const groups: Array<Array<OrderRow & { depth: number }>> = [];
   let current: Array<OrderRow & { depth: number }> = [];
 

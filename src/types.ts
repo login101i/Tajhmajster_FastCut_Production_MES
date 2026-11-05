@@ -12,12 +12,18 @@ export interface OrderRow {
   OnlineOrderId: number | null;
   DateGeneration: string | null;
   DateExecution: string | null;
+  /** Ostatnia modyfikacja rekordu Orders (m.in. przyrost ProductionPrc). */
+  DateMod?: string | null;
+  /** GREATEST(DateMod, max Productions.DateAdd) — aktywność produkcji. */
+  LastActivityAt?: string | null;
   ProductionPrc: string | number | null;
   IsGroupOrder: number | null;
   IdParent: number | null;
   PriorityStr: string | null;
   MaterialsSymbols: string | null;
   FlagState: number | null;
+  /** 0 = jeszcze nie wydane/dostarczone; 1 = dostarczono / wydano. */
+  FlagOut?: number | null;
   JobCutFlag: number | null;
   JobCutNumber: number | null;
   MaterialsGroupFlag: number | null;

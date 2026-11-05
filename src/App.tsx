@@ -24,10 +24,12 @@ import type { AppView, OrderRow } from './types';
 import {
   ANIM_DEMO_ORDER_ID,
   APP_VERSION,
+  AUTO_REFRESH_HOUR_FROM,
+  AUTO_REFRESH_HOUR_TO,
   AUTO_REFRESH_MS,
+  isAutoRefreshHours,
   isChildProductionsGroup,
   MIN_PRODUCTION_ORDER_ID,
-  ORDER_STATE_ON_PRODUCTION,
   ORDERS_GROUP_LIMIT,
   ORDERS_LIST_LIMIT,
   PRODUCTION_TEST_GROUP_IDS,
@@ -68,19 +70,18 @@ function TopBar({
       {nav ? <div className="topbar__center">{nav}</div> : null}
       <div className="topbar__right">
         <LanguageSwitcher />
-        <button
-          type="button"
-          className={`dev-toggle ${devMode ? 'dev-toggle--on' : ''}`}
-          onClick={onToggleDev}
-          aria-pressed={devMode}
-          title="DEV"
-        >
-          DEV
-        </button>
         {logout}
         <span className="app-version" title={APP_VERSION}>
           {APP_VERSION}
         </span>
+        <button
+          type="button"
+          className={`dev-toggle dev-toggle--ghost${devMode ? ' dev-toggle--on' : ''}`}
+          onClick={onToggleDev}
+          aria-pressed={devMode}
+          aria-label="DEV"
+          title=""
+        />
       </div>
     </header>
   );
@@ -88,8 +89,32 @@ function TopBar({
 
 function readView(): AppView {
   const raw = sessionStorage.getItem(STORAGE_KEY_VIEW);
-  if (raw === '1' || raw === '2' || raw === '3') return Number(raw) as AppView;
+  // Widok 2 (tabela OptiCut) ukryty w UI — logika zostaje; przywróć listę
+  if (raw === '2') return 1;
+  if (raw === '1' || raw === '3') return Number(raw) as AppView;
   return 1;
+}
+
+function ViewListIcon() {
+  return (
+    <svg className="view-switch__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"
+      />
+    </svg>
+  );
+}
+
+function ViewBoardIcon() {
+  return (
+    <svg className="view-switch__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 3h3v3h-3v-3zm5 0h3v3h-3v-3zm-5 5h3v3h-3v-3zm5 0h3v3h-3v-3z"
+      />
+    </svg>
+  );
 }
 
 export default function App() {
@@ -122,6 +147,7 @@ export default function App() {
   const [syncPreviewGroups, setSyncPreviewGroups] = useState<OrdersToSyncGroup[]>([]);
   const [focusOrderId, setFocusOrderId] = useState<number | null>(null);
   const [refreshInSec, setRefreshInSec] = useState(Math.ceil(AUTO_REFRESH_MS / 1000));
+  const [autoRefreshStopped, setAutoRefreshStopped] = useState(false);
   const [animPlayToken, setAnimPlayToken] = useState(0);
 
   const viewRef = useRef(view);
@@ -130,6 +156,12 @@ export default function App() {
   devModeRef.current = devMode;
   const prodTestRef = useRef(prodTest);
   prodTestRef.current = prodTest;
+
+  useEffect(() => {
+    const board = view === 3 && !prodTest;
+    document.body.classList.toggle('view-board', board);
+    return () => document.body.classList.remove('view-board');
+  }, [view, prodTest]);
 
   const selectView = (next: AppView) => {
     setView(next);
@@ -225,7 +257,7 @@ export default function App() {
           }
 
           const res = await fetchOrders({
-            state: String(ORDER_STATE_ON_PRODUCTION),
+            state: '',
             limit: ORDERS_LIST_LIMIT,
             minId: MIN_PRODUCTION_ORDER_ID,
           });
@@ -277,7 +309,7 @@ export default function App() {
         });
         setSyncPreviewGroups(preview.groups || []);
         const res = await fetchOrders({
-          state: String(ORDER_STATE_ON_PRODUCTION),
+          state: '',
           limit: ORDERS_LIST_LIMIT,
           minId: MIN_PRODUCTION_ORDER_ID,
         });
@@ -333,13 +365,21 @@ export default function App() {
     if (!unlocked || selectedId != null) return;
     // Initial / view change: no DB write of % (auto-refresh also read-only)
     void load({ writePrc: false });
-    if (prodTest) return;
+    if (prodTest || autoRefreshStopped) {
+      setRefreshInSec(0);
+      return;
+    }
 
     const totalSec = Math.ceil(AUTO_REFRESH_MS / 1000);
-    setRefreshInSec(totalSec);
+    setRefreshInSec(isAutoRefreshHours() ? totalSec : 0);
     let left = totalSec;
 
     const tick = window.setInterval(() => {
+      if (!isAutoRefreshHours()) {
+        left = totalSec;
+        setRefreshInSec(0);
+        return;
+      }
       left -= 1;
       if (left <= 0) {
         left = totalSec;
@@ -349,7 +389,7 @@ export default function App() {
     }, 1000);
 
     return () => window.clearInterval(tick);
-  }, [unlocked, selectedId, load, prodTest, view]);
+  }, [unlocked, selectedId, load, prodTest, view, autoRefreshStopped]);
 
   if (needsGate && !unlocked) {
     return <LoginGate onUnlock={() => setUnlocked(true)} />;
@@ -365,21 +405,17 @@ export default function App() {
           className={view === 1 ? 'active' : ''}
           onClick={() => selectView(1)}
         >
+          <ViewListIcon />
           {t('view1')}
         </button>
-        <button
-          type="button"
-          className={view === 2 ? 'active' : ''}
-          onClick={() => selectView(2)}
-        >
-          {t('view2')}
-        </button>
+        {/* Stary widok 2 (OrdersTableView) ukryty — logika w App zostaje */}
         <button
           type="button"
           className={view === 3 ? 'active' : ''}
           onClick={() => selectView(3)}
         >
-          {t('view3')}
+          <ViewBoardIcon />
+          {t('view2')}
         </button>
       </div>
     ) : null;
@@ -410,9 +446,28 @@ export default function App() {
             {loading ? t('refreshing') : t('refresh')}
           </button>
           {devMode && !prodTest ? (
-            <span className="refresh-countdown" aria-live="polite">
-              {refreshInSec}s
-            </span>
+            <>
+              <button
+                type="button"
+                className={`btn btn-ghost stop-refresh-btn${autoRefreshStopped ? ' stop-refresh-btn--stopped' : ''}`}
+                onClick={() => setAutoRefreshStopped((v) => !v)}
+                aria-pressed={autoRefreshStopped}
+                title={
+                  autoRefreshStopped ? t('startRefresh') : t('stopRefresh')
+                }
+              >
+                {autoRefreshStopped ? t('startRefresh') : t('stopRefresh')}
+              </button>
+              <span
+                className="refresh-countdown"
+                aria-live="polite"
+                title={`Auto-refresh ${AUTO_REFRESH_HOUR_FROM}:00–${AUTO_REFRESH_HOUR_TO}:00`}
+              >
+                {autoRefreshStopped || refreshInSec <= 0
+                  ? '—'
+                  : `${refreshInSec}s`}
+              </span>
+            </>
           ) : null}
         </span>
         {showOrdersToSync ? (
@@ -465,7 +520,9 @@ export default function App() {
         devMode={devMode}
         onToggleDev={toggleDevMode}
       />
-      <div className={`app-shell ${view === 2 && !prodTest ? 'app-shell--wide' : ''}`}>
+      <div
+        className={`app-shell${view === 2 && !prodTest ? ' app-shell--wide' : ''}${view === 3 && !prodTest ? ' app-shell--board' : ''}`}
+      >
         {selectedId != null ? (
           <OrderDetail
             orderId={selectedId}

@@ -143,8 +143,8 @@ export const handler: Handler = async (event) => {
 
         if (!dryRun) {
           await conn.query<ResultSetHeader>(
-            'UPDATE Orders SET ProductionPrc = ? WHERE Id = ?',
-            [formatted, childId],
+            'UPDATE Orders SET ProductionPrc = ?, DateMod = ? WHERE Id = ?',
+            [formatted, formatSqlDateTime(), childId],
           );
         }
 

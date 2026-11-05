@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useI18n } from '../i18n/LanguageContext';
-import { buildDisplayGroups, orderIdLabel } from '../lib/orderDisplay';
+import { buildDisplayGroups, isRejected, orderIdLabel } from '../lib/orderDisplay';
 import { formatProductionPercentValue, parseProductionPercent } from '../lib/percent';
+import { trackProductionGains } from '../lib/recentGains';
 import type { OrderRow } from '../types';
 import { GroupStar } from './GroupStar';
 import { PercentBar } from './PercentBar';
@@ -24,7 +25,7 @@ export function OrderList({
   animPlayToken?: number;
 }) {
   const { t } = useI18n();
-  const groups = buildDisplayGroups(orders);
+  const groups = buildDisplayGroups(orders, trackProductionGains(orders));
   const focusRef = useRef<HTMLTableRowElement | null>(null);
   const onFocusHandledRef = useRef(onFocusHandled);
   onFocusHandledRef.current = onFocusHandled;
@@ -81,6 +82,7 @@ export function OrderList({
                 const pct = parseProductionPercent(row.ProductionPrc) ?? 0;
                 const pctLabel = `${formatProductionPercentValue(pct)}%`;
                 const isScrollTarget = scrollTargetId != null && row.Id === scrollTargetId;
+                const rejected = isRejected(row);
                 return (
                   <tr
                     key={row.Id}
@@ -89,6 +91,7 @@ export function OrderList({
                       row.depth > 0 ? 'is-child' : '',
                       isGroup || (row.depth === 0 && group.length > 1) ? 'is-group-mother' : '',
                       focusRowId === row.Id || isScrollTarget ? 'is-focus-order' : '',
+                      rejected ? 'is-rejected' : '',
                     ]
                       .filter(Boolean)
                       .join(' ') || undefined}

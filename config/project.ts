@@ -14,13 +14,30 @@
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.1.06';
+export const APP_VERSION = 'V.1.07';
 
 /** Auto-odświeżanie listy (ms). 30_000 = 30 s, 60_000 = 60 s. */
 export const AUTO_REFRESH_MS = 60_000;
 
-/** Stan zlecenia = „na produkcji” / Realizacja. */
+/**
+ * Godziny lokalne, w których działa auto-odświeżanie (oszczędność DB).
+ * Od AUTO_REFRESH_HOUR_FROM włącznie do AUTO_REFRESH_HOUR_TO wyłącznie
+ * (np. 6–18 = 06:00–17:59).
+ */
+export const AUTO_REFRESH_HOUR_FROM = 6;
+export const AUTO_REFRESH_HOUR_TO = 18;
+
+/** Czy teraz jest w oknie auto-odświeżania (czas lokalny przeglądarki). */
+export function isAutoRefreshHours(d = new Date()): boolean {
+  const h = d.getHours();
+  return h >= AUTO_REFRESH_HOUR_FROM && h < AUTO_REFRESH_HOUR_TO;
+}
+
+/** Stan zlecenia = Realizacja (na produkcji). */
 export const ORDER_STATE_ON_PRODUCTION = 4;
+
+/** Stan zlecenia = Odrzucone (ciemny bordowy w widoku 1/3). */
+export const ORDER_STATE_REJECTED = 2;
 
 /**
  * Minimalne Orders.Id na liście głównej, widoku 3 i w syncu % grup.
@@ -34,6 +51,12 @@ export const MIN_PRODUCTION_ORDER_ID = 8700;
  * Format YYYY-MM-DD albo '' żeby nie filtrować po dacie.
  */
 export const SYNC_PRODUCTIONS_FROM_DATE = '';
+
+/**
+ * Widok 1: zlecenia z 0% spadają w dół, jeśli od wysłania na produkcję
+ * (DateExecution / DateMod) minęło więcej niż ten czas bez przyrostu %.
+ */
+export const ZERO_PCT_IDLE_DROP_MS = 24 * 60 * 60 * 1000;
 
 /** Limit rekordów przy pobieraniu listy zleceń (główny monitor). */
 export const ORDERS_LIST_LIMIT = 500;
