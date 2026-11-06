@@ -65,26 +65,38 @@ button {
 }
 
 /* ── Top bar / brand (LIGNUM LINK style) ── */
-.topbar {
+/* Płynne chowanie headera (0.5 s) — zwija slot, bez skoku sticky→fixed */
+.topbar-wrap {
   position: sticky;
   top: 0;
   z-index: 40;
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.5s ease;
+}
+
+.topbar-wrap--hidden {
+  grid-template-rows: 0fr;
+  pointer-events: none;
+}
+
+.topbar-wrap > .topbar {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.topbar {
   background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid var(--ll-line);
   backdrop-filter: blur(6px);
-  transition: transform 0.28s ease, opacity 0.28s ease;
+  transform: translateY(0);
+  opacity: 1;
+  transition: transform 0.5s ease, opacity 0.5s ease;
 }
 
-/* Poza flow — lista / board wjeżdżają pod górę ekranu */
 .topbar--hidden {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  width: 100%;
-  transform: translateY(-110%);
+  transform: translateY(-35%);
   opacity: 0;
-  pointer-events: none;
 }
 
 .topbar__phone {
@@ -760,8 +772,12 @@ table.monitor td.row-progress {
   }
 }
 
+/* Po kliknięciu kafelka w widoku 2 — niebieskie obramowanie ~1s */
 table.monitor tbody tr.is-focus-order {
-  box-shadow: inset 0 0 0 2px #90caf9;
+  box-shadow: inset 0 0 0 3px #1e88e5, 0 0 0 2px rgba(30, 136, 229, 0.35);
+  z-index: 3;
+  scroll-margin-top: 6.5rem;
+  scroll-margin-bottom: 4rem;
 }
 
 /* Odrzucone (State = 2) */
@@ -828,11 +844,13 @@ table.monitor tbody tr:hover {
 }
 
 table.monitor tbody tr.is-child {
-  /* tło dzieci: gradient % na tr; bez osobnego szarego */
+  /* tło dzieci: fill % na tr; bez osobnego szarego */
 }
 
 table.monitor tbody tr.is-child td.order-num-cell {
-  padding-left: 0.65rem;
+  padding-left: 0.35rem;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .order-num-col {
@@ -954,12 +972,12 @@ table.monitor tbody tr.is-child td.order-num-cell {
   color: var(--ll-navy);
 }
 
-/* Podzlecenie: niebieska linia tuż po lewej od numeru */
+/* Podzlecenie: ikona + numer z lewej strony wiersza */
 .order-num--child {
   display: inline-grid;
   grid-template-columns: auto auto;
-  justify-content: end;
-  justify-items: end;
+  justify-content: start;
+  justify-items: start;
   column-gap: 0.15rem;
   width: 100%;
 }
@@ -978,7 +996,7 @@ table.monitor tbody tr.is-child td.order-num-cell {
   font-size: clamp(2.03rem, 5.85vh, 2.59rem);
   font-weight: 700;
   letter-spacing: -0.02em;
-  text-align: right;
+  text-align: left;
   width: auto;
 }
 
@@ -1125,7 +1143,68 @@ table.monitor tbody tr.is-child td.order-num-cell {
   transform-origin: left center;
 }
 
-/* Postęp na tr (gradient) — td.row-progress tylko jako fallback / telefon */
+/* Postęp na tr — ukośna prawa krawędź (~15°) + fade/blur; shine opcjonalnie */
+.monitor-row__fill {
+  /* tan(8°) × ~wys. wiersza → skos prawej krawędzi ~8° */
+  --progress-slant: 0.7rem;
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: visible;
+  transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--progress-slant)) 0,
+    100% 100%,
+    0 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(100% - 2.6rem),
+    rgba(0, 0, 0, 0.55) calc(100% - 1.35rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(100% - 2.6rem),
+    rgba(0, 0, 0, 0.55) calc(100% - 1.35rem),
+    transparent 100%
+  );
+}
+
+/* Miękki blur przy prawej (ukośnej) krawędzi — wewnątrz clip-path */
+.monitor-row__fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 2.2rem;
+  pointer-events: none;
+  background-color: inherit;
+  opacity: 0.7;
+  filter: blur(8px);
+  transform: skewX(-8deg);
+  transform-origin: right center;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 40%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 40%, transparent 100%);
+}
+
+.monitor-row__fill.shine {
+  overflow: visible;
+}
+
+table.monitor td.order-num-cell,
+table.monitor td.percent-cell,
+table.monitor td.desc-cell {
+  position: relative;
+  z-index: 1;
+}
+
 .row-progress {
   display: none;
 }
@@ -1134,6 +1213,93 @@ table.monitor tbody tr.is-child td.order-num-cell {
   display: block;
   height: 100%;
   transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/*
+ * Bourbon-style shine: skewed white streak sweeping across.
+ * Soft idle loop (~6.5s) + quicker pass on hover.
+ * (No position:relative — fills stay position:absolute.)
+ */
+.shine {
+  overflow: hidden;
+  isolation: isolate;
+  transition: box-shadow 0.25s ease, background-color 0.25s ease, color 0.25s ease;
+}
+
+.shine::before {
+  content: '';
+  display: block;
+  width: 0;
+  height: 86%;
+  position: absolute;
+  top: 7%;
+  left: -12%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 14px 3px rgba(255, 255, 255, 0.85);
+  transform: skewX(-20deg);
+  /* Jeden przebłysk co ~10 s (tylko elementy z klasą .shine = świeży przyrost) */
+  animation: shine 10s ease-in-out infinite;
+}
+
+.shine:hover::before,
+table.monitor tbody tr:hover .monitor-row__fill.shine::before,
+.pb-card:hover .pb-card__fill.shine::before {
+  animation: shine-hover 1.15s linear;
+}
+
+.shine:focus,
+.shine:focus-visible,
+.shine:focus-within {
+  outline: none !important;
+  box-shadow: none;
+}
+
+@keyframes shine {
+  0% {
+    opacity: 0;
+    width: 0;
+    left: -12%;
+  }
+  8% {
+    opacity: 0.95;
+    width: 14%;
+  }
+  18% {
+    opacity: 0;
+    width: 0;
+    left: 110%;
+  }
+  100% {
+    opacity: 0;
+    width: 0;
+    left: 110%;
+  }
+}
+
+@keyframes shine-hover {
+  0% {
+    opacity: 0;
+    width: 0;
+    left: -12%;
+  }
+  35% {
+    opacity: 1;
+    width: 18%;
+  }
+  100% {
+    opacity: 0;
+    width: 0;
+    left: 112%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shine::before {
+    display: none;
+  }
 }
 
 table.monitor td.percent-cell .percent-bar__fill {
@@ -1895,6 +2061,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   background: #81c784;
   transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: left center;
+  overflow: hidden;
 }
 
 .pb-card--grow .pb-card__fill {
@@ -2231,24 +2398,9 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     padding-bottom: 0;
   }
 
+  /* Postęp = .monitor-row__fill (shine); stary row-progress zostaje ukryty */
   table.monitor td.row-progress {
-    display: block;
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    padding: 0 !important;
-    border: none !important;
-    width: auto;
-    height: auto;
-  }
-
-  .row-progress__fill {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    height: auto;
+    display: none;
   }
 
   table.monitor td:not(.row-progress) {
@@ -2496,7 +2648,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 
   table.monitor tbody tr.is-child {
     background-color: #fff;
-    padding-left: 0.85rem;
+    padding-left: 0.4rem;
   }
 
   table.monitor tbody tr.is-group-mother,
@@ -2602,15 +2754,16 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     justify-content: flex-start;
   }
 
+  /* Telefon: mniejszy Id + OwnNumber w widoku 1 */
   .order-num__value {
-    font-size: 2.48rem;
+    font-size: 1.72rem;
     text-align: left;
     width: auto;
   }
 
   .order-num__own {
     text-align: left;
-    font-size: 1.24rem;
+    font-size: 0.88rem;
     max-width: none;
     color: var(--ll-navy);
   }
@@ -2625,11 +2778,11 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .order-num--mother .order-num__value {
-    font-size: 2.97rem;
+    font-size: 1.95rem;
   }
 
   .order-num--mother .order-num__own {
-    font-size: 1.49rem;
+    font-size: 0.98rem;
   }
 
   .order-num--child {
@@ -2647,22 +2800,22 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .order-num--child .order-num__value {
-    font-size: 2.36rem;
+    font-size: 1.58rem;
     width: auto;
   }
 
   .order-num--child .order-num__own {
-    font-size: 1.19rem;
+    font-size: 0.82rem;
     width: auto;
   }
 
   .order-num-cell .group-star svg {
-    width: 2.55rem;
-    height: 2.55rem;
+    width: 1.85rem;
+    height: 1.85rem;
   }
 
   .order-num--mother .order-num__icon {
-    min-width: 2.55rem;
+    min-width: 1.85rem;
   }
 
   .order-num-cell .group-child-line svg {

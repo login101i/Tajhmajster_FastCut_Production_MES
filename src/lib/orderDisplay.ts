@@ -84,9 +84,13 @@ export function buildDisplayRows(
     }
   }
 
-  /* Podzlecenia malejąco po Id (np. 9047 → 9039, 9038…) */
+  /* Podzlecenia w grupie: malejąco po ProductionPrc (potem Id) */
   for (const [parentId, list] of children) {
-    list.sort((a, b) => b.Id - a.Id);
+    list.sort((a, b) => {
+      const d = pctOf(b) - pctOf(a);
+      if (d !== 0) return d;
+      return b.Id - a.Id;
+    });
     children.set(parentId, list);
   }
 
@@ -288,6 +292,25 @@ export function buildBoardClusters(
   return clusters;
 }
 
+/**
+ * CSS grid (row-major) + 2 kolumny: ułóż DOM tak, by wizualnie
+ * sortowanie szło kolumnami (najpierw lewa góra→dół, potem prawa).
+ * Wejście: już posortowana lista (np. % malejąco).
+ */
+export function arrangeForCssGridColumnMajor<T>(items: T[], cols = 2): T[] {
+  const n = items.length;
+  if (n <= 1 || cols <= 1) return items;
+  const rows = Math.ceil(n / cols);
+  const out: T[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const src = c * rows + r;
+      if (src < n) out.push(items[src]);
+    }
+  }
+  return out;
+}
+
 /** Group display rows into mother+children blocks for View 1 spacing. */
 export function buildDisplayGroups(
   orders: OrderRow[],
@@ -307,5 +330,13 @@ export function buildDisplayGroups(
     }
   }
   if (current.length) groups.push(current);
-  return groups;
+
+  /* Matka zostaje na górze; dzieci w 2 kolumnach = jeden ciąg % (kolumna po kolumnie) */
+  return groups.map((group) => {
+    if (group.length <= 2) return group;
+    const mother = group[0];
+    const kids = group.slice(1);
+    if (kids.length <= 1) return group;
+    return [mother, ...arrangeForCssGridColumnMajor(kids, 2)];
+  });
 }

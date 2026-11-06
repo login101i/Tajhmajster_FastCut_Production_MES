@@ -6,7 +6,10 @@ import {
   parseProductionPercent,
   resolveFillColor,
 } from '../lib/percent';
-import { trackProductionGains } from '../lib/recentGains';
+import {
+  hasRecentProductionGain,
+  trackProductionGains,
+} from '../lib/recentGains';
 import type { OrderRow } from '../types';
 import { GroupChildLine, GroupStar } from './GroupStar';
 import { PercentBar } from './PercentBar';
@@ -27,7 +30,8 @@ export function OrderList({
   animPlayToken?: number;
 }) {
   const { t } = useI18n();
-  const groups = buildDisplayGroups(orders, trackProductionGains(orders));
+  const gainTimes = trackProductionGains(orders).gainTimes;
+  const groups = buildDisplayGroups(orders, gainTimes);
   const focusRef = useRef<HTMLTableRowElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const onFocusHandledRef = useRef(onFocusHandled);
@@ -35,11 +39,17 @@ export function OrderList({
 
   useEffect(() => {
     if (focusOrderId == null) return;
-    const id = window.requestAnimationFrame(() => {
-      focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      onFocusHandledRef.current?.();
+    const raf = window.requestAnimationFrame(() => {
+      focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
-    return () => window.cancelAnimationFrame(id);
+    /* Podświetlenie ~1s, potem czyścimy focus */
+    const clear = window.setTimeout(() => {
+      onFocusHandledRef.current?.();
+    }, 1000);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(clear);
+    };
   }, [focusOrderId]);
 
   /* Lewy przycisk myszy + przeciągnięcie = scroll pionowy (jak touch) */
@@ -103,25 +113,6 @@ export function OrderList({
         </thead>
         {groups.map((group) => {
           const motherId = group[0]?.Id;
-          const focusInGroup =
-            focusOrderId != null &&
-            group.some(
-              (r) =>
-                r.Id === focusOrderId ||
-                Number(r.IdParent) === focusOrderId ||
-                (Number(r.IsGroupOrder) === 1 && r.Id === focusOrderId),
-            );
-          // Prefer focusing the mother row of the group containing focusOrderId
-          const focusRowId = focusInGroup
-            ? group.find((r) => r.Id === focusOrderId)?.Id ??
-              group.find((r) => Number(r.IdParent) === focusOrderId)?.Id ??
-              motherId
-            : null;
-          // If focus is a child, still scroll mother (group start) to top
-          const scrollTargetId =
-            focusOrderId != null && focusInGroup
-              ? motherId
-              : null;
 
           const isMultiGroup =
             group.length > 1 || group.some((r) => Number(r.IsGroupOrder) === 1);
@@ -137,38 +128,36 @@ export function OrderList({
                   isGroup || (row.depth === 0 && group.length > 1);
                 const pct = parseProductionPercent(row.ProductionPrc) ?? 0;
                 const pctLabel = `${formatProductionPercentValue(pct)}%`;
-                const isScrollTarget = scrollTargetId != null && row.Id === scrollTargetId;
+                const isFocusRow = focusOrderId != null && row.Id === focusOrderId;
                 const rejected = isRejected(row);
                 /* Ciemna zieleń tylko matka grupy; podzlecenia = zwykła skala */
                 const fillColor = resolveFillColor(pct, { isGroup: isGroupMother });
+                const showShine =
+                  !rejected &&
+                  pct > 0 &&
+                  hasRecentProductionGain(row.Id, gainTimes);
                 return (
                   <tr
                     key={row.Id}
-                    ref={isScrollTarget ? focusRef : undefined}
+                    ref={isFocusRow ? focusRef : undefined}
                     className={[
                       row.depth > 0 ? 'is-child' : '',
                       isGroupMother ? 'is-group-mother' : '',
                       isGroupMother ? 'is-group-fill' : '',
-                      focusRowId === row.Id || isScrollTarget ? 'is-focus-order' : '',
+                      isFocusRow ? 'is-focus-order' : '',
                       rejected ? 'is-rejected' : '',
                       pct >= 100 ? 'is-done' : '',
                     ]
                       .filter(Boolean)
                       .join(' ') || undefined}
-                    style={
-                      rejected
-                        ? undefined
-                        : {
-                            backgroundImage: `linear-gradient(90deg, ${fillColor} ${pct}%, transparent ${pct}%)`,
-                          }
-                    }
                   >
-                    <td className="row-progress" aria-hidden>
+                    {!rejected && pct > 0 ? (
                       <span
-                        className="row-progress__fill"
+                        className={`monitor-row__fill${showShine ? ' shine' : ''}`}
                         style={{ width: `${pct}%`, backgroundColor: fillColor }}
+                        aria-hidden
                       />
-                    </td>
+                    ) : null}
                     <td className="order-num-cell">
                       <div
                         className={[

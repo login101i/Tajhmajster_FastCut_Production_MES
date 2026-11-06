@@ -16,8 +16,41 @@
 /** Wersja UI (prawy górny róg topbara). */
 export const APP_VERSION = 'V.1.1';
 
-/** Auto-odświeżanie listy (ms). 30_000 = 30 s, 60_000 = 60 s. */
-export const AUTO_REFRESH_MS = 60_000;
+/**
+ * Auto-odświeżanie (adaptacyjne):
+ * - domyślnie / po 5 min bez przyrostu % → AUTO_REFRESH_MS (3 min)
+ * - po wykrytym przyroście ProductionPrc → AUTO_REFRESH_ACTIVE_MS (60 s)
+ * - po 15 min bez przyrostu → AUTO_REFRESH_DEEP_IDLE_MS (8 min)
+ */
+export const AUTO_REFRESH_MS = 3 * 60_000;
+/** Interwał zaraz po przyroście %. */
+export const AUTO_REFRESH_ACTIVE_MS = 60_000;
+/** Po tylu ms bez przyrostu wracamy z 60 s do 3 min. */
+export const AUTO_REFRESH_IDLE_TO_DEFAULT_MS = 5 * 60_000;
+/** Po tylu ms bez przyrostu przechodzimy na wolniejszy interwał. */
+export const AUTO_REFRESH_DEEP_IDLE_AFTER_MS = 15 * 60_000;
+/** Interwał przy długim braku przyrostu. */
+export const AUTO_REFRESH_DEEP_IDLE_MS = 8 * 60_000;
+
+/** Wybierz interwał na podstawie czasu od ostatniego przyrostu %. */
+export function resolveAutoRefreshMs(
+  lastGainAt: number | null,
+  now = Date.now(),
+): number {
+  if (lastGainAt == null) return AUTO_REFRESH_MS;
+  const idle = now - lastGainAt;
+  if (idle < AUTO_REFRESH_IDLE_TO_DEFAULT_MS) return AUTO_REFRESH_ACTIVE_MS;
+  if (idle < AUTO_REFRESH_DEEP_IDLE_AFTER_MS) return AUTO_REFRESH_MS;
+  return AUTO_REFRESH_DEEP_IDLE_MS;
+}
+
+/**
+ * Shine (błysk na pasku %): tylko zlecenia z przyrostem w ostatnich X ms.
+ * Animacja CSS: jeden przebieg co ~SHINE_PERIOD_MS.
+ */
+export const SHINE_RECENT_GAIN_MS = 10 * 60_000;
+/** Okres pętli shine (s) — jeden przebłysk co 10 s. */
+export const SHINE_PERIOD_S = 10;
 
 /** Ukryj header po braku ruchu: telefon (ms). */
 export const HEADER_HIDE_MS_PHONE = 5_000;

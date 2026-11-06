@@ -9,6 +9,10 @@ import {
   type BoardCluster,
 } from '../lib/orderDisplay';
 import { resolveFillColor } from '../lib/percent';
+import {
+  hasRecentProductionGain,
+  trackProductionGains,
+} from '../lib/recentGains';
 import type { OrderRow } from '../types';
 
 /** Niebieska ikona „zlecenie grupowe” (środek kafelka matki). */
@@ -32,12 +36,14 @@ function OrderCard({
   role,
   pickup,
   showGroupIcon,
+  shine,
 }: {
   order: OrderRow;
   onSelect: (id: number) => void;
   role?: 'mother' | 'child';
   pickup?: boolean;
   showGroupIcon?: boolean;
+  shine?: boolean;
 }) {
   const pct = pctOf(order);
   const rejected = isRejected(order);
@@ -46,6 +52,7 @@ function OrderCard({
   const prevRef = useRef<number | null>(null);
   const [displayWidth, setDisplayWidth] = useState(pct);
   const [growing, setGrowing] = useState(false);
+  const showShine = Boolean(shine) && !rejected && pct > 0;
 
   // Jak PercentBar w widoku 1: animacja gdy % wzrośnie
   useEffect(() => {
@@ -87,7 +94,7 @@ function OrderCard({
       title={[order.Id, order.OwnNumber, `${pct.toFixed(0)}%`].filter(Boolean).join(' · ')}
     >
       <span
-        className="pb-card__fill"
+        className={`pb-card__fill${showShine ? ' shine' : ''}`}
         style={{ width: `${displayWidth}%`, backgroundColor: fillColor }}
         aria-hidden
       />
@@ -115,15 +122,22 @@ function ClusterBlock({
   cluster,
   onSelect,
   pickup,
+  gainTimes,
 }: {
   cluster: BoardCluster;
   onSelect: (id: number) => void;
   pickup?: boolean;
+  gainTimes: Map<number, number>;
 }) {
   if (!cluster.isGroup) {
     return (
       <div className="pb-cluster pb-cluster--solo">
-        <OrderCard order={cluster.root} onSelect={onSelect} pickup={pickup} />
+        <OrderCard
+          order={cluster.root}
+          onSelect={onSelect}
+          pickup={pickup}
+          shine={hasRecentProductionGain(cluster.root.Id, gainTimes)}
+        />
       </div>
     );
   }
@@ -144,6 +158,7 @@ function ClusterBlock({
           role="mother"
           pickup={pickup}
           showGroupIcon
+          shine={hasRecentProductionGain(mother.Id, gainTimes)}
         />
       ) : null}
       {children.length > 0 ? (
@@ -156,6 +171,7 @@ function ClusterBlock({
               role="child"
               pickup={pickup}
               showGroupIcon={iconOnFirstChild && i === 0}
+              shine={hasRecentProductionGain(o.Id, gainTimes)}
             />
           ))}
         </div>
@@ -170,12 +186,14 @@ function ClusterGrid({
   empty,
   lane,
   pickup,
+  gainTimes,
 }: {
   clusters: BoardCluster[];
   onSelect: (id: number) => void;
   empty: string;
   lane?: boolean;
   pickup?: boolean;
+  gainTimes: Map<number, number>;
 }) {
   return (
     <div
@@ -187,6 +205,7 @@ function ClusterGrid({
           cluster={c}
           onSelect={onSelect}
           pickup={pickup}
+          gainTimes={gainTimes}
         />
       ))}
       {clusters.length === 0 ? <p className="pb-empty">{empty}</p> : null}
@@ -202,6 +221,7 @@ export function ProductionBoardView({
   onSelect: (id: number) => void;
 }) {
   const { t } = useI18n();
+  const gainTimes = trackProductionGains(orders).gainTimes;
   const clusters = buildBoardClusters(orders);
   const active = clusters.filter((c) => isBoardInProgress(c.root, c.pct));
   const pickup = clusters.filter((c) => isBoardPickup(c.root, c.pct));
@@ -209,7 +229,12 @@ export function ProductionBoardView({
   return (
     <div className="pb pb--with-pickup">
       <div className="pb-main">
-        <ClusterGrid clusters={active} onSelect={onSelect} empty={t('boardEmpty')} />
+        <ClusterGrid
+          clusters={active}
+          onSelect={onSelect}
+          empty={t('boardEmpty')}
+          gainTimes={gainTimes}
+        />
       </div>
 
       <aside className="pb-lane pb-lane--pickup">
@@ -244,6 +269,7 @@ export function ProductionBoardView({
           empty={t('pickupEmpty')}
           lane
           pickup
+          gainTimes={gainTimes}
         />
       </aside>
     </div>

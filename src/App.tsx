@@ -32,7 +32,6 @@ import {
   APP_VERSION,
   AUTO_REFRESH_HOUR_FROM,
   AUTO_REFRESH_HOUR_TO,
-  AUTO_REFRESH_MS,
   HEADER_HIDE_MS_PHONE,
   HEADER_HIDE_MS_WIDE,
   HEADER_PHONE_MAX_PX,
@@ -42,12 +41,17 @@ import {
   ORDERS_GROUP_LIMIT,
   ORDERS_LIST_LIMIT,
   PRODUCTION_TEST_GROUP_IDS,
+  resolveAutoRefreshMs,
   STORAGE_KEY_DEV_MODE,
   STORAGE_KEY_PROD_TEST,
   STORAGE_KEY_VIEW,
   SYNC_PRC_BATCH_SIZE,
   SYNC_PRODUCTIONS_FROM_DATE,
 } from '../config/project';
+import {
+  getLastProductionGainAt,
+  trackProductionGains,
+} from './lib/recentGains';
 
 export { MIN_PRODUCTION_ORDER_ID, PRODUCTION_TEST_GROUP_IDS };
 
@@ -74,64 +78,66 @@ function TopBar({
   }, [hidden]);
 
   return (
-    <header className={`topbar${hidden ? ' topbar--hidden' : ''}`}>
-      <div className="topbar__phone">
-        <button
-          type="button"
-          className="topbar__burger"
-          aria-label={t('menu')}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((v) => !v)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-        {nav ? <div className="topbar__phone-nav">{nav}</div> : null}
-        <div className="logo-badge logo-badge--compact" aria-label="LIGNUM LINK">
-          <span className="logo-badge__mark">LL</span>
-        </div>
-      </div>
-
-      <div className="topbar__desktop">
-        <div className="topbar__left">
-          <div className="logo-badge" aria-label="LIGNUM LINK">
-            <span className="logo-badge__mark">LL</span>
-            Lignum Link
-          </div>
-          {actions ? <div className="topbar__actions">{actions}</div> : null}
-        </div>
-        {nav ? <div className="topbar__center">{nav}</div> : null}
-        <div className="topbar__right">
-          <LanguageSwitcher />
-          {logout}
-          <span className="app-version" title={APP_VERSION}>
-            {APP_VERSION}
-          </span>
+    <div className={`topbar-wrap${hidden ? ' topbar-wrap--hidden' : ''}`}>
+      <header className={`topbar${hidden ? ' topbar--hidden' : ''}`}>
+        <div className="topbar__phone">
           <button
             type="button"
-            className={`dev-toggle dev-toggle--ghost${devMode ? ' dev-toggle--on' : ''}`}
-            onClick={onToggleDev}
-            aria-pressed={devMode}
-            aria-label="DEV"
-            title=""
-          />
+            className="topbar__burger"
+            aria-label={t('menu')}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          {nav ? <div className="topbar__phone-nav">{nav}</div> : null}
+          <div className="logo-badge logo-badge--compact" aria-label="LIGNUM LINK">
+            <span className="logo-badge__mark">LL</span>
+          </div>
         </div>
-      </div>
 
-      {menuOpen ? (
-        <div className="topbar__drawer" role="dialog" aria-label={t('menu')}>
-          {actions ? <div className="topbar__drawer-actions">{actions}</div> : null}
-          <div className="topbar__drawer-foot">
+        <div className="topbar__desktop">
+          <div className="topbar__left">
+            <div className="logo-badge" aria-label="LIGNUM LINK">
+              <span className="logo-badge__mark">LL</span>
+              Lignum Link
+            </div>
+            {actions ? <div className="topbar__actions">{actions}</div> : null}
+          </div>
+          {nav ? <div className="topbar__center">{nav}</div> : null}
+          <div className="topbar__right">
             <LanguageSwitcher />
             {logout}
             <span className="app-version" title={APP_VERSION}>
               {APP_VERSION}
             </span>
+            <button
+              type="button"
+              className={`dev-toggle dev-toggle--ghost${devMode ? ' dev-toggle--on' : ''}`}
+              onClick={onToggleDev}
+              aria-pressed={devMode}
+              aria-label="DEV"
+              title=""
+            />
           </div>
         </div>
-      ) : null}
-    </header>
+
+        {menuOpen ? (
+          <div className="topbar__drawer" role="dialog" aria-label={t('menu')}>
+            {actions ? <div className="topbar__drawer-actions">{actions}</div> : null}
+            <div className="topbar__drawer-foot">
+              <LanguageSwitcher />
+              {logout}
+              <span className="app-version" title={APP_VERSION}>
+                {APP_VERSION}
+              </span>
+            </div>
+          </div>
+        ) : null}
+      </header>
+    </div>
   );
 }
 
@@ -194,8 +200,11 @@ export default function App() {
   const [syncPreviewLoading, setSyncPreviewLoading] = useState(false);
   const [syncPreviewGroups, setSyncPreviewGroups] = useState<OrdersToSyncGroup[]>([]);
   const [focusOrderId, setFocusOrderId] = useState<number | null>(null);
-  const [refreshInSec, setRefreshInSec] = useState(Math.ceil(AUTO_REFRESH_MS / 1000));
+  const [refreshInSec, setRefreshInSec] = useState(() =>
+    Math.ceil(resolveAutoRefreshMs(getLastProductionGainAt()) / 1000),
+  );
   const [autoRefreshStopped, setAutoRefreshStopped] = useState(false);
+  const lastGainAtRef = useRef<number | null>(getLastProductionGainAt());
   const [animPlayToken, setAnimPlayToken] = useState(0);
   const [headerHidden, setHeaderHidden] = useState(false);
 
@@ -320,7 +329,10 @@ export default function App() {
           for (const res of orderLists) {
             for (const o of res.orders || []) byId.set(o.Id, o);
           }
-          setOrders([...byId.values()]);
+          const rows = [...byId.values()];
+          const tracked = trackProductionGains(rows);
+          if (tracked.lastGainAt != null) lastGainAtRef.current = tracked.lastGainAt;
+          setOrders(rows);
         } else {
           if (
             writePrc &&
@@ -345,7 +357,10 @@ export default function App() {
             limit: ORDERS_LIST_LIMIT,
             minId: MIN_PRODUCTION_ORDER_ID,
           });
-          setOrders(res.orders || []);
+          const rows = res.orders || [];
+          const tracked = trackProductionGains(rows);
+          if (tracked.lastGainAt != null) lastGainAtRef.current = tracked.lastGainAt;
+          setOrders(rows);
           setSyncByGroup({});
         }
         setUpdatedAt(new Date());
@@ -397,7 +412,10 @@ export default function App() {
           limit: ORDERS_LIST_LIMIT,
           minId: MIN_PRODUCTION_ORDER_ID,
         });
-        setOrders(res.orders || []);
+        const rows = res.orders || [];
+        const tracked = trackProductionGains(rows);
+        if (tracked.lastGainAt != null) lastGainAtRef.current = tracked.lastGainAt;
+        setOrders(rows);
         setUpdatedAt(new Date());
       } catch (err) {
         const message = err instanceof Error ? err.message : t('fetchError');
@@ -435,7 +453,10 @@ export default function App() {
       for (const res of orderLists) {
         for (const o of res.orders || []) byId.set(o.Id, o);
       }
-      setOrders([...byId.values()]);
+      const rows = [...byId.values()];
+      const tracked = trackProductionGains(rows);
+      if (tracked.lastGainAt != null) lastGainAtRef.current = tracked.lastGainAt;
+      setOrders(rows);
       setUpdatedAt(new Date());
     } catch (err) {
       const message = err instanceof Error ? err.message : t('fetchError');
@@ -454,22 +475,27 @@ export default function App() {
       return;
     }
 
-    const totalSec = Math.ceil(AUTO_REFRESH_MS / 1000);
-    setRefreshInSec(isAutoRefreshHours() ? totalSec : 0);
-    let left = totalSec;
+    const nextSec = () =>
+      Math.ceil(resolveAutoRefreshMs(lastGainAtRef.current) / 1000);
+
+    let left = nextSec();
+    setRefreshInSec(isAutoRefreshHours() ? left : 0);
 
     const tick = window.setInterval(() => {
       if (!isAutoRefreshHours()) {
-        left = totalSec;
+        left = nextSec();
         setRefreshInSec(0);
         return;
       }
       left -= 1;
       if (left <= 0) {
-        left = totalSec;
-        void load({ writePrc: false });
+        void load({ writePrc: false }).finally(() => {
+          left = nextSec();
+          setRefreshInSec(left);
+        });
+        left = nextSec();
       }
-      setRefreshInSec(left);
+      setRefreshInSec(Math.max(left, 0));
     }, 1000);
 
     return () => window.clearInterval(tick);
@@ -545,11 +571,13 @@ export default function App() {
               <span
                 className="refresh-countdown"
                 aria-live="polite"
-                title={`Auto-refresh ${AUTO_REFRESH_HOUR_FROM}:00–${AUTO_REFRESH_HOUR_TO}:00`}
+                title={`Auto-refresh ${AUTO_REFRESH_HOUR_FROM}:00–${AUTO_REFRESH_HOUR_TO}:00 · 60s / 3min / 8min wg przyrostu %`}
               >
                 {autoRefreshStopped || refreshInSec <= 0
                   ? '—'
-                  : `${refreshInSec}s`}
+                  : refreshInSec >= 60
+                    ? `${Math.floor(refreshInSec / 60)}:${String(refreshInSec % 60).padStart(2, '0')}`
+                    : `${refreshInSec}s`}
               </span>
             </>
           ) : null}

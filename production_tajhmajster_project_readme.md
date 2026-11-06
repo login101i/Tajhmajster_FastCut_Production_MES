@@ -3,7 +3,46 @@
 > Ten plik skopiuj do drugiego projektu. Opisuje **co** wziąć z OptiCut, **jakie tabele** są potrzebne, **jak liczyć %** (w tym zlecenia grupowe matka/córki) oraz **jak to wystawić na Netlify + `.env`**.
 
 **Źródło w tym repo:** `/production` — tabela kroków, kolumna **5 = `%`** (`ProductionPercent` / `Orders.ProductionPrc`).  
-**Ostatnia aktualizacja:** 2026-11-03
+**Ostatnia aktualizacja:** 2026-11-06
+
+---
+
+## 0. Monitor produkcji (ten projekt Netlify) — ważne zmiany
+
+Konfiguracja: `config/project.ts`. Detekcja przyrostów %: `src/lib/recentGains.ts`.
+
+### 0.1 Adaptacyjne auto-odświeżanie
+
+Po każdym fetchu lista jest porównywana ze snapshotem `ProductionPrc` (sessionStorage). Gdy **gdziekolwiek** % wzrośnie, zapisywany jest timestamp ostatniego przyrostu (`lastGainAt`).
+
+| Stan (czas od ostatniego przyrostu %) | Interwał | Stała |
+|---------------------------------------|----------|--------|
+| Brak przyrostu w sesji (domyślnie) | **3 min** | `AUTO_REFRESH_MS` |
+| Przyrost w ostatnich **5 min** | **60 s** | `AUTO_REFRESH_ACTIVE_MS` |
+| 5–15 min bez przyrostu | z powrotem **3 min** | `AUTO_REFRESH_MS` |
+| **≥ 15 min** bez przyrostu | **8 min** | `AUTO_REFRESH_DEEP_IDLE_MS` |
+
+Logika wyboru: `resolveAutoRefreshMs(lastGainAt)` w `config/project.ts`.  
+Auto-refresh działa tylko w godzinach `AUTO_REFRESH_HOUR_FROM`…`AUTO_REFRESH_HOUR_TO` (domyślnie 6–18).  
+Countdown w DEV pokazuje czas do kolejnego odświeżenia.
+
+### 0.2 Shine (błysk na zielonym progressie)
+
+| Zasada | Wartość |
+|--------|---------|
+| Kiedy widać | tylko zlecenia/podzlecenia z **świeżym przyrostem %** |
+| Okno „świeżości” | `SHINE_RECENT_GAIN_MS` = **10 min** |
+| Częstotliwość błysku | co **~10 s** (`SHINE_PERIOD_S`) — CSS `animation: shine 10s` |
+| Gdzie | Widok 1 (wiersze `.monitor-row__fill`) oraz Widok 2 / board (`.pb-card__fill`) |
+
+Helper: `hasRecentProductionGain(orderId, gainTimes)` — klasa `shine` dokładana tylko wtedy.
+
+### 0.3 Inne (skrót)
+
+- **Widok 1 grupy:** podzlecenia sortowane malejąco po `ProductionPrc`; w 2 kolumnach układ **kolumna po kolumnie** (lewa góra→dół, potem prawa).
+- **Progress w wierszu:** prawa krawędź pod kątem **~8°** + fade/blur (`--progress-slant` w CSS).
+- **Header:** chowa się płynnie w **0.5 s** (`.topbar-wrap`).
+- **Widok 2 → Widok 1:** klik kafelka scrolluje wiersz na środek + niebieskie obramowanie ~1 s.
 
 ---
 
