@@ -206,7 +206,10 @@ export default function App() {
   const [autoRefreshStopped, setAutoRefreshStopped] = useState(false);
   const lastGainAtRef = useRef<number | null>(getLastProductionGainAt());
   const [animPlayToken, setAnimPlayToken] = useState(0);
+  const [swapAnimToken, setSwapAnimToken] = useState(0);
   const [headerHidden, setHeaderHidden] = useState(false);
+  /** Widok 2 → 1 (żółty fokus): header zostaje widoczny, bez chowania/pokazywania */
+  const focusNavLockRef = useRef(false);
 
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -230,6 +233,8 @@ export default function App() {
         : HEADER_HIDE_MS_WIDE;
 
     const bump = () => {
+      /* Podczas przejścia z board — nie ruszaj headera (zostaje widoczny) */
+      if (focusNavLockRef.current) return;
       setHeaderHidden(false);
       if (timer) window.clearTimeout(timer);
       timer = window.setTimeout(() => setHeaderHidden(true), hideDelay());
@@ -257,6 +262,7 @@ export default function App() {
   }, [headerHidden]);
 
   const selectView = (next: AppView) => {
+    focusNavLockRef.current = false;
     setView(next);
     sessionStorage.setItem(STORAGE_KEY_VIEW, String(next));
     setSelectedId(null);
@@ -264,10 +270,17 @@ export default function App() {
   };
 
   const openOrderInView1 = (orderId: number) => {
+    focusNavLockRef.current = true;
+    setHeaderHidden(false);
     setSelectedId(null);
     setView(1);
     sessionStorage.setItem(STORAGE_KEY_VIEW, '1');
     setFocusOrderId(orderId);
+  };
+
+  const clearFocusOrder = () => {
+    setFocusOrderId(null);
+    focusNavLockRef.current = false;
   };
 
   const toggleDevMode = () => {
@@ -505,7 +518,16 @@ export default function App() {
     return <LoginGate onUnlock={() => setUnlocked(true)} />;
   }
 
-  const showOrdersToSync = devMode && !prodTest && view === 1;
+  /* Ten sam pasek DEV w widoku 1 i 2 (board = view 3) */
+  const showDevChrome = devMode && !prodTest;
+  const showOrdersToSync = showDevChrome;
+
+  const goView1ForAnim = () => {
+    if (view !== 1) {
+      setView(1);
+      sessionStorage.setItem(STORAGE_KEY_VIEW, '1');
+    }
+  };
 
   const headerNav =
     selectedId == null && !prodTest ? (
@@ -555,7 +577,7 @@ export default function App() {
           >
             {loading ? t('refreshing') : t('refresh')}
           </button>
-          {devMode && !prodTest ? (
+          {showDevChrome ? (
             <>
               <button
                 type="button"
@@ -592,18 +614,32 @@ export default function App() {
             {t('ordersToSync')}
           </button>
         ) : null}
-        {devMode && !prodTest && view === 1 ? (
-          <button
-            className="btn btn-ghost"
-            type="button"
-            onClick={() => {
-              setAnimPlayToken((n) => n + 1);
-              setFocusOrderId(ANIM_DEMO_ORDER_ID);
-            }}
-            title={`#${ANIM_DEMO_ORDER_ID}`}
-          >
-            {t('playAnim')}
-          </button>
+        {showDevChrome ? (
+          <>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              onClick={() => {
+                goView1ForAnim();
+                setAnimPlayToken((n) => n + 1);
+                setFocusOrderId(ANIM_DEMO_ORDER_ID);
+              }}
+              title={`#${ANIM_DEMO_ORDER_ID}`}
+            >
+              {t('playAnim')}
+            </button>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              onClick={() => {
+                goView1ForAnim();
+                setSwapAnimToken((n) => n + 1);
+              }}
+              title={t('playSwapAnimHint')}
+            >
+              {t('playSwapAnim')}
+            </button>
+          </>
         ) : null}
       </>
     ) : null;
@@ -683,9 +719,10 @@ export default function App() {
                 <OrderList
                   orders={orders}
                   focusOrderId={focusOrderId}
-                  onFocusHandled={() => setFocusOrderId(null)}
+                  onFocusHandled={clearFocusOrder}
                   animOrderId={ANIM_DEMO_ORDER_ID}
                   animPlayToken={animPlayToken}
+                  swapAnimToken={swapAnimToken}
                 />
               ) : null}
               {!error && !prodTest && view === 2 ? (

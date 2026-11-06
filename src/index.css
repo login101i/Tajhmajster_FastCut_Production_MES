@@ -636,7 +636,7 @@ table.monitor tbody.order-group {
   background: transparent;
 }
 
-/* Te same luki co na małym tablecie: 3px / 8px (widać tło strony) */
+/* Luki: 3px między podzleceniami; 10px między zwykłym a grupowym */
 table.monitor tbody.order-group--simple {
   padding-top: 0;
   padding-bottom: 3px;
@@ -647,9 +647,18 @@ table.monitor tbody.order-group--multi {
   grid-template-columns: 1fr 1fr;
   width: 100%;
   column-gap: 0.35rem;
-  row-gap: 0;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  row-gap: 3px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+table.monitor tbody.order-group--simple + tbody.order-group--multi,
+table.monitor tbody.order-group--multi + tbody.order-group--simple {
+  margin-top: 10px;
+}
+
+table.monitor tbody.order-group--multi + tbody.order-group--multi {
+  margin-top: 10px;
 }
 
 table.monitor tbody.order-group tr:first-child td,
@@ -666,6 +675,7 @@ table.monitor tbody tr {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas: 'num pct';
+  align-items: center;
   width: auto;
   min-width: 0;
   box-sizing: border-box;
@@ -684,6 +694,8 @@ table.monitor td.order-num-cell {
   width: auto !important;
   min-width: 0 !important;
   max-width: none !important;
+  display: flex;
+  align-items: center;
 }
 
 table.monitor td.percent-cell {
@@ -691,6 +703,10 @@ table.monitor td.percent-cell {
   width: 5.1rem !important;
   min-width: 5.1rem !important;
   max-width: 5.1rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: center;
 }
 
 table.monitor td.row-progress {
@@ -706,7 +722,7 @@ table.monitor td.row-progress {
 
 .order-num__main {
   flex-direction: row !important;
-  align-items: baseline !important;
+  align-items: center !important;
   justify-content: flex-start !important;
   gap: 0.35rem !important;
 }
@@ -749,35 +765,86 @@ table.monitor td.row-progress {
   table.monitor .order-num--child {
     justify-content: start;
     justify-items: start;
+    align-items: center;
     width: auto;
   }
 
   table.monitor .order-num__main {
     justify-content: flex-start !important;
+    align-items: center !important;
   }
 
   table.monitor td.percent-cell {
     justify-self: end;
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    align-self: center;
   }
 
   table.monitor .percent-bar {
     justify-content: flex-end;
+    align-items: center;
+    height: auto;
+    min-height: 0;
+    position: relative;
+    inset: auto;
   }
 
   table.monitor .percent-bar__label {
     justify-content: flex-end;
+    align-items: center;
+    height: auto;
     text-align: right;
     padding-right: 0.65rem;
   }
 }
 
-/* Po kliknięciu kafelka w widoku 2 — niebieskie obramowanie ~1s */
+/* Po kliknięciu kafelka w widoku 2 — puls 3 s, potem zanikanie 1 s */
 table.monitor tbody tr.is-focus-order {
-  box-shadow: inset 0 0 0 3px #1e88e5, 0 0 0 2px rgba(30, 136, 229, 0.35);
   z-index: 3;
   scroll-margin-top: 6.5rem;
   scroll-margin-bottom: 4rem;
+  animation: focus-yellow-pulse 0.7s ease-in-out infinite;
+}
+
+table.monitor tbody tr.is-focus-order--fading {
+  animation: focus-yellow-fade-out 1s ease-out forwards;
+}
+
+@keyframes focus-yellow-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 3px #f9a825, 0 0 0 2px rgba(249, 168, 37, 0.35);
+  }
+  50% {
+    box-shadow: inset 0 0 0 4px #ffc107, 0 0 0 4px rgba(255, 193, 7, 0.55);
+  }
+}
+
+@keyframes focus-yellow-fade-out {
+  0% {
+    box-shadow: inset 0 0 0 3px #f9a825, 0 0 0 2px rgba(249, 168, 37, 0.4);
+  }
+  100% {
+    box-shadow: inset 0 0 0 3px transparent, 0 0 0 2px transparent;
+  }
+}
+
+/* FLIP: wolna zamiana góra ↔ dół */
+table.monitor tbody tr.is-flip-moving {
+  z-index: 6;
+  will-change: transform;
+  box-shadow: 0 8px 22px rgba(30, 58, 95, 0.22);
+  position: relative;
+}
+
+table.monitor tbody tr.is-flip-up {
+  z-index: 7;
+}
+
+table.monitor tbody tr.is-flip-down {
+  z-index: 5;
 }
 
 /* Odrzucone (State = 2) */
@@ -844,7 +911,12 @@ table.monitor tbody tr:hover {
 }
 
 table.monitor tbody tr.is-child {
-  /* tło dzieci: fill % na tr; bez osobnego szarego */
+  /* tło dzieci: fill % na tr; bez cienkiej linii pod Id/OwnNumber */
+  border-bottom: none !important;
+}
+
+table.monitor tbody tr.is-child td {
+  border-bottom: none !important;
 }
 
 table.monitor tbody tr.is-child td.order-num-cell {
@@ -891,7 +963,7 @@ table.monitor tbody tr.is-child td.order-num-cell {
   grid-template-columns: 1.9rem minmax(0, 1fr);
   align-items: center;
   column-gap: 0.18rem;
-  min-height: 90%;
+  min-height: 100%;
   width: 100%;
 }
 
@@ -916,14 +988,15 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num__value {
-  font-size: clamp(2.14rem, 6.3vh, 2.81rem);
-  font-weight: 800;
+  /* Zwykłe zlecenia = ta sama wysokość co OrderId podzlecenia */
+  font-size: clamp(2.03rem, 5.85vh, 2.59rem);
+  font-weight: 700;
   color: var(--ll-navy);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.02em;
   line-height: 0.95;
-  text-align: right;
+  text-align: left;
   width: auto;
   flex-shrink: 0;
 }
@@ -943,15 +1016,16 @@ table.monitor tbody tr.is-child td.order-num-cell {
   flex-shrink: 1;
 }
 
-/* Matka grupy: ikona tuż przy numerze, numer 1.2× większy */
+/* Matka grupy: start od ~1/4 szerokości; ikona + Id + OwnNumber w lewo */
 .order-num--mother {
   display: inline-grid;
   grid-template-columns: auto auto;
-  justify-content: end;
-  justify-items: end;
+  justify-content: start;
+  justify-items: start;
   align-items: center;
   column-gap: 0.18rem;
-  width: 100%;
+  width: auto;
+  max-width: 100%;
 }
 
 .order-num--mother .order-num__main {
@@ -963,13 +1037,39 @@ table.monitor tbody tr.is-child td.order-num-cell {
 .order-num--mother .order-num__value {
   font-size: clamp(2.57rem, 7.56vh, 3.38rem);
   width: auto;
-  text-align: right;
+  text-align: left;
 }
 
 .order-num--mother .order-num__own {
   font-size: clamp(1.28rem, 3.78vh, 1.69rem);
   text-align: left;
   color: var(--ll-navy);
+  line-height: 1;
+}
+
+/* Matka: treść od 1/4 szerokości wiersza; % w pionie z OwnNumber */
+table.monitor tbody tr.is-group-mother {
+  align-items: center;
+}
+
+table.monitor tbody tr.is-group-mother td.order-num-cell {
+  padding-left: 25%;
+  justify-content: flex-start;
+  align-items: center;
+  align-self: center;
+}
+
+table.monitor tbody tr.is-group-mother td.percent-cell {
+  align-items: center;
+  align-self: center;
+}
+
+table.monitor tbody tr.is-group-mother .percent-bar,
+table.monitor tbody tr.is-group-mother .percent-bar__label {
+  align-items: center;
+  height: auto;
+  min-height: 0;
+  line-height: 1;
 }
 
 /* Podzlecenie: ikona + numer z lewej strony wiersza */
@@ -1363,21 +1463,32 @@ table.monitor tbody tr.is-group-fill {
   white-space: nowrap;
 }
 
-/* Widok 1: % przy prawej krawędzi wiersza */
+/* Widok 1: % przy prawej krawędzi, w linii z OwnNumber */
 table.monitor .percent-bar__label {
   font-size: clamp(1.24rem, 3.66vh, 1.8rem);
   line-height: 1;
+  height: auto;
   writing-mode: horizontal-tb;
   text-orientation: mixed;
   letter-spacing: -0.02em;
   transform: none;
   justify-content: flex-end;
+  align-items: baseline;
   padding-right: 0.4rem;
   text-align: right;
 }
 
 table.monitor .percent-bar {
+  position: relative;
+  inset: auto;
+  top: auto;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  height: auto;
+  min-height: 0;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .empty,
@@ -2421,14 +2532,17 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     min-width: 5.1rem;
     max-width: 5.1rem;
     z-index: 2;
+    display: flex;
+    align-items: center;
+    align-self: center;
   }
 
   table.monitor td.percent-cell .percent-bar {
     position: relative;
     top: auto;
     bottom: auto;
-    height: 100%;
-    min-height: 4.05rem;
+    height: auto;
+    min-height: 0;
     width: 100%;
     background: transparent;
     border-color: transparent;
@@ -2603,18 +2717,20 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     display: grid;
     grid-template-columns: 1fr 1fr;
     column-gap: 0.3rem;
-    row-gap: 0;
+    row-gap: 3px;
     width: 100%;
-    padding-top: 8px;
-    padding-bottom: 8px;
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   table.monitor tbody.order-group--multi tr.is-group-mother {
     grid-column: 1 / -1;
   }
 
-  table.monitor tbody.order-group + tbody.order-group {
-    margin-top: 0;
+  table.monitor tbody.order-group--simple + tbody.order-group--multi,
+  table.monitor tbody.order-group--multi + tbody.order-group--simple,
+  table.monitor tbody.order-group--multi + tbody.order-group--multi {
+    margin-top: 10px;
   }
 
   table.monitor tbody.order-group tr:first-child td,
@@ -2649,12 +2765,26 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   table.monitor tbody tr.is-child {
     background-color: #fff;
     padding-left: 0.4rem;
+    border-bottom: none !important;
   }
 
   table.monitor tbody tr.is-group-mother,
   table.monitor tbody tr.is-group-fill {
     background-color: #fff;
     border-color: #c5d0da;
+    align-items: center;
+  }
+
+  table.monitor tbody tr.is-group-mother td.order-num-cell {
+    padding-left: 25%;
+    align-items: center;
+    align-self: center;
+    min-height: 0;
+  }
+
+  table.monitor tbody tr.is-group-mother td.percent-cell {
+    align-items: center;
+    align-self: center;
   }
 
   table.monitor tbody tr:hover {
@@ -2698,22 +2828,24 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     align-items: center;
     justify-content: flex-start;
     text-align: left;
-    align-self: stretch;
+    align-self: center;
     min-height: 3.5rem;
   }
 
   table.monitor td.percent-cell {
     grid-area: pct;
-    width: 4.8rem !important;
-    min-width: 4.8rem !important;
-    max-width: 4.8rem !important;
+    width: 3.4rem !important;
+    min-width: 3.4rem !important;
+    max-width: 3.4rem !important;
     height: auto;
-    min-height: 3.5rem;
-    align-self: stretch;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    align-self: center;
     z-index: 2;
   }
 
-  /* Pasek % tylko etykieta — komórka ma stałą szerokość (absolute nie zwija kolumny) */
+  /* % i treść wyśrodkowane w pionie wiersza */
   table.monitor td.percent-cell .percent-bar {
     position: relative;
     top: auto;
@@ -2721,8 +2853,8 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     left: auto;
     right: auto;
     inset: auto;
-    height: 100%;
-    min-height: 3.5rem;
+    height: auto;
+    min-height: 0;
     width: 100%;
     border: none;
     background: transparent;
@@ -2752,45 +2884,69 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 
   .order-num__main {
     justify-content: flex-start;
+    align-items: center !important;
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 0.28rem !important;
   }
 
-  /* Telefon: mniejszy Id + OwnNumber w widoku 1 */
+  table.monitor tbody tr {
+    align-items: center;
+  }
+
+  /* Telefon: mały Id (= podzlecenie) → więcej miejsca na OwnNumber */
   .order-num__value {
-    font-size: 1.72rem;
+    font-size: 1.05rem;
     text-align: left;
     width: auto;
+    flex-shrink: 0;
   }
 
   .order-num__own {
     text-align: left;
-    font-size: 0.88rem;
+    font-size: 1.05rem;
+    font-weight: 800;
     max-width: none;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-shrink: 1 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
     color: var(--ll-navy);
   }
 
   .order-num--mother {
     justify-content: start;
     justify-items: start;
+    width: auto;
   }
 
   .order-num--mother .order-num__main {
     justify-content: flex-start;
+    min-width: 0;
   }
 
   .order-num--mother .order-num__value {
-    font-size: 1.95rem;
+    font-size: 1.22rem;
   }
 
   .order-num--mother .order-num__own {
-    font-size: 0.98rem;
+    font-size: 1.12rem;
+    line-height: 1;
+  }
+
+  table.monitor tbody tr.is-group-mother .percent-bar__label {
+    font-size: 1.12rem;
+    line-height: 1;
   }
 
   .order-num--child {
     display: inline-grid;
-    grid-template-columns: auto auto;
+    grid-template-columns: auto minmax(0, 1fr);
     justify-content: start;
     justify-items: start;
     column-gap: 0.15rem;
+    width: 100%;
   }
 
   .order-num--child .order-num__icon {
@@ -2800,39 +2956,53 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .order-num--child .order-num__value {
-    font-size: 1.58rem;
+    font-size: 1.05rem;
     width: auto;
   }
 
   .order-num--child .order-num__own {
-    font-size: 0.82rem;
+    font-size: 0.98rem;
     width: auto;
+    min-width: 0;
   }
 
   .order-num-cell .group-star svg {
-    width: 1.85rem;
-    height: 1.85rem;
+    width: 1.35rem;
+    height: 1.35rem;
   }
 
   .order-num--mother .order-num__icon {
-    min-width: 1.85rem;
+    min-width: 1.35rem;
   }
 
   .order-num-cell .group-child-line svg {
-    width: 0.98rem;
-    height: 0.98rem;
+    width: 0.85rem;
+    height: 0.85rem;
   }
 
   table.monitor .percent-bar__label {
-    font-size: clamp(1.07rem, 3.15vh, 1.52rem);
+    font-size: 1.05rem;
+    line-height: 1;
+    height: auto;
     writing-mode: horizontal-tb;
     transform: none;
     letter-spacing: -0.02em;
     justify-content: flex-end;
-    padding-right: 0.1rem;
+    align-items: baseline;
+    padding-right: 0.05rem;
     text-align: right;
     width: 100%;
     color: var(--ll-navy);
+  }
+
+  .order-num,
+  .order-num--mother,
+  .order-num--child {
+    align-items: baseline;
+  }
+
+  .order-num__own {
+    line-height: 1;
   }
 
   /* Tekst czytelny na jasnej i ciemnej zieleni (halo) */

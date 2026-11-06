@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../i18n/LanguageContext';
 import { buildDisplayGroups, isRejected, orderIdLabel } from '../lib/orderDisplay';
 import {
@@ -14,12 +14,55 @@ import type { OrderRow } from '../types';
 import { GroupChildLine, GroupStar } from './GroupStar';
 import { PercentBar } from './PercentBar';
 
+type DisplayRow = OrderRow & { depth: number };
+
+/** 3× wolniejsza zamiana wierszy (góra ↔ dół). */
+const FLIP_MS = 1650;
+/** Fokus z widoku 2: żółty puls 3 s, potem zanikanie 1 s. */
+const FOCUS_PULSE_MS = 3000;
+const FOCUS_FADE_MS = 1000;
+const FOCUS_HIGHLIGHT_MS = FOCUS_PULSE_MS + FOCUS_FADE_MS;
+
+function childOrderKey(groups: DisplayRow[][]): string {
+  return groups
+    .map((g) =>
+      g
+        .filter((r) => r.depth > 0)
+        .map((r) => r.Id)
+        .join(','),
+    )
+    .join('|');
+}
+
+/**
+ * DEV: zamiana pionowa — w siatce 2 kol. wiersze 0 i 2 to ta sama kolumna
+ * (góra ↔ dół). Przy 2 dzieciach: zwykła zamiana pary.
+ */
+function applyDemoChildSwap(groups: DisplayRow[][]): DisplayRow[][] {
+  const idx = groups.findIndex((g) => g.filter((r) => r.depth > 0).length >= 2);
+  if (idx < 0) return groups;
+  return groups.map((g, i) => {
+    if (i !== idx) return g;
+    const mother = g[0];
+    const kids = g.slice(1);
+    if (kids.length < 2) return g;
+    const swapped = kids.slice();
+    if (kids.length >= 3) {
+      [swapped[0], swapped[2]] = [swapped[2], swapped[0]];
+    } else {
+      [swapped[0], swapped[1]] = [swapped[1], swapped[0]];
+    }
+    return mother ? [mother, ...swapped] : swapped;
+  });
+}
+
 export function OrderList({
   orders,
   focusOrderId = null,
   onFocusHandled,
   animOrderId = null,
   animPlayToken = 0,
+  swapAnimToken = 0,
 }: {
   orders: OrderRow[];
   /** Scroll this order (or its group mother) to the top of the list. */
@@ -28,26 +71,103 @@ export function OrderList({
   /** DEV: force grow animation on this order id */
   animOrderId?: number | null;
   animPlayToken?: number;
+  /** DEV: symulacja animacji zamiany podzleceń */
+  swapAnimToken?: number;
 }) {
   const { t } = useI18n();
   const gainTimes = trackProductionGains(orders).gainTimes;
-  const groups = buildDisplayGroups(orders, gainTimes);
+  const baseGroups = buildDisplayGroups(orders, gainTimes);
+  const [demoSwapped, setDemoSwapped] = useState(false);
+  const [focusFading, setFocusFading] = useState(false);
   const focusRef = useRef<HTMLTableRowElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const flipPositionsRef = useRef<Map<string, { left: number; top: number }>>(
+    new Map(),
+  );
   const onFocusHandledRef = useRef(onFocusHandled);
   onFocusHandledRef.current = onFocusHandled;
 
   useEffect(() => {
-    if (focusOrderId == null) return;
+    if (swapAnimToken <= 0) return;
+    setDemoSwapped((v) => !v);
+  }, [swapAnimToken]);
+
+  const groups = useMemo(
+    () => (demoSwapped ? applyDemoChildSwap(baseGroups) : baseGroups),
+    [baseGroups, demoSwapped],
+  );
+
+  const flipKey = childOrderKey(groups);
+
+  /* FLIP: wiersz z dołu → góra, z góry → dół (wolna zamiana) */
+  useLayoutEffect(() => {
+    const root = wrapRef.current;
+    if (!root) return;
+
+    const nodes = root.querySelectorAll<HTMLElement>('[data-flip-id]');
+    const next = new Map<string, { left: number; top: number }>();
+    const moving: HTMLElement[] = [];
+
+    nodes.forEach((node) => {
+      const id = node.dataset.flipId;
+      if (!id) return;
+      const rect = node.getBoundingClientRect();
+      next.set(id, { left: rect.left, top: rect.top });
+      const prev = flipPositionsRef.current.get(id);
+      if (!prev) return;
+      const dx = prev.left - rect.left;
+      const dy = prev.top - rect.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      node.style.transition = 'none';
+      /* Preferuj ruch pionowy (góra↔dół); drobny dx zostawiamy dla siatki 2 kol. */
+      node.style.transform = `translate(${dx}px, ${dy}px)`;
+      node.classList.add('is-flip-moving');
+      if (dy < -1) node.classList.add('is-flip-up');
+      if (dy > 1) node.classList.add('is-flip-down');
+      moving.push(node);
+    });
+
+    flipPositionsRef.current = next;
+    if (moving.length === 0) return;
+
+    void root.offsetWidth;
+    const play = window.requestAnimationFrame(() => {
+      for (const node of moving) {
+        node.style.transition = `transform ${FLIP_MS}ms cubic-bezier(0.45, 0.02, 0.35, 1)`;
+        node.style.transform = '';
+      }
+    });
+
+    const clear = window.setTimeout(() => {
+      for (const node of moving) {
+        node.classList.remove('is-flip-moving', 'is-flip-up', 'is-flip-down');
+        node.style.transition = '';
+        node.style.transform = '';
+      }
+    }, FLIP_MS + 80);
+
+    return () => {
+      window.cancelAnimationFrame(play);
+      window.clearTimeout(clear);
+    };
+  }, [flipKey]);
+
+  useEffect(() => {
+    if (focusOrderId == null) {
+      setFocusFading(false);
+      return;
+    }
+    setFocusFading(false);
     const raf = window.requestAnimationFrame(() => {
       focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
-    /* Podświetlenie ~1s, potem czyścimy focus */
+    const fade = window.setTimeout(() => setFocusFading(true), FOCUS_PULSE_MS);
     const clear = window.setTimeout(() => {
       onFocusHandledRef.current?.();
-    }, 1000);
+    }, FOCUS_HIGHLIGHT_MS);
     return () => {
       window.cancelAnimationFrame(raf);
+      window.clearTimeout(fade);
       window.clearTimeout(clear);
     };
   }, [focusOrderId]);
@@ -130,21 +250,24 @@ export function OrderList({
                 const pctLabel = `${formatProductionPercentValue(pct)}%`;
                 const isFocusRow = focusOrderId != null && row.Id === focusOrderId;
                 const rejected = isRejected(row);
-                /* Ciemna zieleń tylko matka grupy; podzlecenia = zwykła skala */
                 const fillColor = resolveFillColor(pct, { isGroup: isGroupMother });
                 const showShine =
                   !rejected &&
                   pct > 0 &&
                   hasRecentProductionGain(row.Id, gainTimes);
+                const isChild = row.depth > 0;
                 return (
                   <tr
                     key={row.Id}
                     ref={isFocusRow ? focusRef : undefined}
+                    data-flip-id={isChild ? String(row.Id) : undefined}
                     className={[
-                      row.depth > 0 ? 'is-child' : '',
+                      isChild ? 'is-child' : '',
                       isGroupMother ? 'is-group-mother' : '',
                       isGroupMother ? 'is-group-fill' : '',
-                      isFocusRow ? 'is-focus-order' : '',
+                      isFocusRow
+                        ? `is-focus-order${focusFading ? ' is-focus-order--fading' : ''}`
+                        : '',
                       rejected ? 'is-rejected' : '',
                       pct >= 100 ? 'is-done' : '',
                     ]
@@ -163,7 +286,7 @@ export function OrderList({
                         className={[
                           'order-num',
                           'order-num--over-fill',
-                          row.depth > 0 ? 'order-num--child' : '',
+                          isChild ? 'order-num--child' : '',
                           isGroup ? 'order-num--mother' : '',
                         ]
                           .filter(Boolean)
@@ -172,7 +295,7 @@ export function OrderList({
                         <span className="order-num__icon">
                           {isGroup ? (
                             <GroupStar title={t('groupOrder')} />
-                          ) : row.depth > 0 ? (
+                          ) : isChild ? (
                             <GroupChildLine title={t('child')} />
                           ) : null}
                         </span>

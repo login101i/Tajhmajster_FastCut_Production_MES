@@ -50,6 +50,8 @@ const messages = {
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',
     playAnim: 'Play animation',
+    playSwapAnim: 'Animacja przejścia',
+    playSwapAnimHint: 'Symulacja zamiany podzleceń po przyroście %',
     ordersToSync: 'Zlecenia do aktualizacji',
     ordersToSyncTitle: 'Zlecenia do aktualizacji %',
     ordersToSyncHint:
@@ -86,7 +88,7 @@ const messages = {
     passwordPlaceholder: 'Hasło monitora',
     logIn: 'Zaloguj',
     loginHint:
-      'Tajhmajster — monitor produkcji. Hasło = MONITOR_ACCESS_TOKEN z Netlify / pliku .env.',
+      'Tajhmajster — monitor produkcji. ',
   },
   en: {
     appSubtitle: 'Production',
@@ -131,6 +133,8 @@ const messages = {
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',
     playAnim: 'Play animation',
+    playSwapAnim: 'Swap animation',
+    playSwapAnimHint: 'Simulate child-order swap after % increase',
     ordersToSync: 'Orders to update',
     ordersToSyncTitle: 'Orders for % update',
     ordersToSyncHint:
@@ -167,7 +171,7 @@ const messages = {
     passwordPlaceholder: 'Monitor password',
     logIn: 'Log In',
     loginHint:
-      'Tajhmajster — production monitor. Password = MONITOR_ACCESS_TOKEN from Netlify / .env.',
+      'Tajhmajster — production monitor.',
   },
   sl: {
     appSubtitle: 'Production',
@@ -212,6 +216,8 @@ const messages = {
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',
     playAnim: 'Play animation',
+    playSwapAnim: 'Animacija prehoda',
+    playSwapAnimHint: 'Simulacija zamenjave podnaročil po porastu %',
     ordersToSync: 'Naročila za posodobitev',
     ordersToSyncTitle: 'Naročila za posodobitev %',
     ordersToSyncHint:
@@ -248,7 +254,7 @@ const messages = {
     passwordPlaceholder: 'Geslo monitorja',
     logIn: 'Prijava',
     loginHint:
-      'Tajhmajster — monitor proizvodnje. Geslo = MONITOR_ACCESS_TOKEN iz Netlify / .env.',
+      'Tajhmajster — monitor proizvodnje.',
   },
 } as const;
 
