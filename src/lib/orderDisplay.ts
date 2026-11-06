@@ -84,6 +84,12 @@ export function buildDisplayRows(
     }
   }
 
+  /* Podzlecenia malejąco po Id (np. 9047 → 9039, 9038…) */
+  for (const [parentId, list] of children) {
+    list.sort((a, b) => b.Id - a.Id);
+    children.set(parentId, list);
+  }
+
   for (const o of orders) {
     if (!placedAsChild.has(o.Id)) roots.push(o);
   }
@@ -103,7 +109,7 @@ export function buildDisplayRows(
   const out: Array<OrderRow & { depth: number }> = [];
   for (const root of roots) {
     out.push({ ...root, depth: 0 });
-    const kids = (children.get(root.Id) || []).slice().sort((a, b) => a.Id - b.Id);
+    const kids = children.get(root.Id) || [];
     for (const kid of kids) out.push({ ...kid, depth: 1 });
   }
   return out;
@@ -230,6 +236,11 @@ export function buildBoardClusters(
     }
   }
 
+  for (const [parentId, list] of childrenByParent) {
+    list.sort((a, b) => b.Id - a.Id);
+    childrenByParent.set(parentId, list);
+  }
+
   const roots = orders.filter(
     (o) => Number(o.IsGroupOrder) === 1 || !Number(o.IdParent),
   );
@@ -244,9 +255,7 @@ export function buildBoardClusters(
     if (clusters.length >= limit) break;
 
     const isGroup = Number(root.IsGroupOrder) === 1;
-    const kids = isGroup
-      ? (childrenByParent.get(root.Id) || []).slice().sort((a, b) => a.Id - b.Id)
-      : [];
+    const kids = isGroup ? childrenByParent.get(root.Id) || [] : [];
 
     if (!isGroup) {
       if (!isProductionStarted(root)) continue;

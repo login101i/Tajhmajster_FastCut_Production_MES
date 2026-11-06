@@ -570,8 +570,32 @@ button {
   overflow: hidden;
 }
 
+/* Widok 1: panel przezroczysty — w lukach widać tło strony */
+.panel--ghost {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.panel--ghost .table-wrap {
+  background: transparent;
+  overflow-x: auto;
+}
+
 .table-wrap {
   overflow-x: auto;
+}
+
+.table-wrap--drag-scroll,
+.table-wrap--drag-scroll * {
+  cursor: grab;
+}
+
+.table-wrap--drag-scroll.is-drag-scrolling,
+.table-wrap--drag-scroll.is-drag-scrolling * {
+  cursor: grabbing;
+  user-select: none;
 }
 
 table.monitor {
@@ -579,23 +603,34 @@ table.monitor {
   border-collapse: separate;
   border-spacing: 0;
   min-width: 760px;
+  background: transparent;
 }
 
 table.monitor tbody.order-group {
-  margin-top: 15px;
-  margin-bottom: 15px;
+  margin-top: 0;
+  margin-bottom: 0;
+  background: transparent;
 }
 
-table.monitor tbody.order-group tr:first-child td {
-  border-top: 15px solid var(--ll-bg, #eef2f6);
+/* Proste zlecenie: odstęp 3px — przezroczysty (widać tło strony) */
+table.monitor tbody.order-group--simple tr:last-child td {
+  border-bottom: 3px solid transparent;
+  background-clip: padding-box;
 }
 
-table.monitor tbody.order-group tr:last-child td {
-  border-bottom: 15px solid var(--ll-bg, #eef2f6);
+/* Zlecenie grupowe: odstęp 8px nad i pod — przezroczysty */
+table.monitor tbody.order-group--multi tr:first-child td {
+  border-top: 8px solid transparent;
+  background-clip: padding-box;
 }
 
-table.monitor tbody tr.is-focus-order td {
-  background: #eef6ff;
+table.monitor tbody.order-group--multi tr:last-child td {
+  border-bottom: 8px solid transparent;
+  background-clip: padding-box;
+}
+
+table.monitor tbody tr.is-focus-order {
+  box-shadow: inset 0 0 0 2px #90caf9;
 }
 
 /* Odrzucone (State = 2) */
@@ -606,6 +641,7 @@ table.monitor tbody tr.is-rejected td {
 }
 
 table.monitor tbody tr.is-rejected .order-num__value,
+table.monitor tbody tr.is-rejected .order-num__own,
 table.monitor tbody tr.is-rejected .order-desc,
 table.monitor tbody tr.is-rejected .muted,
 table.monitor tbody tr.is-rejected .percent-bar__label {
@@ -648,17 +684,19 @@ table.monitor td {
 }
 
 table.monitor tbody tr {
-  height: 4.25rem;
-  cursor: pointer;
+  height: 3.2rem;
+  cursor: grab;
   transition: background 0.12s ease;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 table.monitor tbody tr:hover {
-  background: var(--ll-row-hover);
+  filter: brightness(0.985);
 }
 
 table.monitor tbody tr.is-child {
-  background: var(--ll-child);
+  /* tło dzieci: gradient % na tr; bez osobnego szarego */
 }
 
 table.monitor tbody tr.is-child td.order-num-cell {
@@ -666,19 +704,20 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num-col {
-  width: 5.85rem;
-  min-width: 5.85rem;
-  max-width: 5.85rem;
+  width: 7.25rem;
+  min-width: 7.25rem;
+  max-width: 7.25rem;
 }
 
 .order-num-cell {
   position: relative;
   white-space: nowrap;
   overflow: hidden;
-  background: #f4f7f4;
-  width: 5.85rem;
-  max-width: 5.85rem;
-  padding: 0.2rem 0.25rem 0.2rem 0.12rem;
+  background: transparent;
+  width: 7.25rem;
+  min-width: 7.25rem;
+  max-width: 7.25rem;
+  padding: 0.15rem 0.3rem 0.15rem 0.15rem;
   text-align: right;
   vertical-align: middle;
 }
@@ -699,9 +738,9 @@ table.monitor tbody tr.is-child td.order-num-cell {
 
 .order-num {
   display: grid;
-  grid-template-columns: 1.7rem minmax(0, 1fr);
+  grid-template-columns: 1.25rem minmax(0, 1fr);
   align-items: center;
-  column-gap: 0.15rem;
+  column-gap: 0.12rem;
   min-height: 90%;
   width: 100%;
 }
@@ -710,12 +749,24 @@ table.monitor tbody tr.is-child td.order-num-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.7rem;
-  min-height: 1.5rem;
+  width: 1.25rem;
+  min-height: 1.15rem;
+}
+
+.order-num__main {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.05rem;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .order-num__value {
-  font-size: clamp(1.9rem, 5.6vh, 2.5rem);
+  font-size: clamp(1.425rem, 4.2vh, 1.875rem);
   font-weight: 800;
   color: var(--ll-navy);
   font-variant-numeric: tabular-nums;
@@ -723,8 +774,23 @@ table.monitor tbody tr.is-child td.order-num-cell {
   letter-spacing: -0.04em;
   line-height: 0.95;
   text-align: right;
-  justify-self: stretch;
-  width: 100%;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.order-num__own {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(0.71rem, 2.1vh, 0.94rem);
+  font-weight: 800;
+  color: var(--ll-navy);
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  text-align: right;
+  flex-shrink: 1;
 }
 
 /* Matka grupy: ikona tuż przy numerze, numer 1.2× większy */
@@ -738,14 +804,22 @@ table.monitor tbody tr.is-child td.order-num-cell {
   width: 100%;
 }
 
-.order-num--mother .order-num__icon {
-  width: auto;
+.order-num--mother .order-num__main {
+  width: 100%;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 .order-num--mother .order-num__value {
-  font-size: clamp(2.28rem, 6.72vh, 3rem);
+  font-size: clamp(1.71rem, 5.04vh, 2.25rem);
   width: auto;
   text-align: right;
+}
+
+.order-num--mother .order-num__own {
+  font-size: clamp(0.855rem, 2.52vh, 1.125rem);
+  text-align: left;
+  color: var(--ll-navy);
 }
 
 /* Podzlecenie: niebieska linia tuż po lewej od numeru */
@@ -762,12 +836,26 @@ table.monitor tbody tr.is-child td.order-num-cell {
   width: auto;
 }
 
+.order-num--child .order-num__main {
+  width: 100%;
+  align-items: flex-end;
+  justify-content: center;
+}
+
 .order-num--child .order-num__value {
-  font-size: clamp(1.8rem, 5.2vh, 2.3rem);
+  font-size: clamp(1.35rem, 3.9vh, 1.725rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   text-align: right;
   width: auto;
+}
+
+.order-num--child .order-num__own {
+  font-size: clamp(0.675rem, 1.95vh, 0.86rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: left;
+  color: var(--ll-navy);
 }
 
 .order-num__id {
@@ -791,8 +879,13 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .desc-cell .order-desc {
-  font-size: 1.08rem;
+  font-size: 0.81rem;
   line-height: 1.25;
+}
+
+/* OwnNumber w kolumnie opisu — tylko tablet / telefon */
+.desc-cell .order-desc--own {
+  display: none;
 }
 
 .desc-cell .muted {
@@ -829,8 +922,13 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num-cell .group-star svg {
-  width: clamp(1.35rem, 4vh, 1.9rem);
-  height: clamp(1.35rem, 4vh, 1.9rem);
+  width: clamp(2rem, 6vh, 2.8rem);
+  height: clamp(2rem, 6vh, 2.8rem);
+}
+
+.order-num--mother .order-num__icon {
+  width: auto;
+  min-width: 2.8rem;
 }
 
 .order-num-cell .group-child-line {
@@ -838,8 +936,8 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num-cell .group-child-line svg {
-  width: clamp(1rem, 3vh, 1.35rem);
-  height: clamp(1rem, 3vh, 1.35rem);
+  width: clamp(0.75rem, 2.25vh, 1rem);
+  height: clamp(0.75rem, 2.25vh, 1rem);
 }
 
 .order-desc {
@@ -873,17 +971,17 @@ table.monitor tbody tr.is-child td.order-num-cell {
 
 .percent-bar {
   position: absolute;
-  top: 4%;
-  bottom: 4%;
+  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
-  height: 92%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border: 1px solid var(--ll-line);
-  background: #fff;
+  border: 1px solid transparent;
+  background: transparent;
   box-sizing: border-box;
 }
 
@@ -895,7 +993,7 @@ table.monitor tbody tr.is-child td.order-num-cell {
   transform-origin: left center;
 }
 
-/* Pełny pasek postępu przez cały wiersz (telefon) — ukryty na desktopie */
+/* Postęp na tr (gradient) — td.row-progress tylko jako fallback / telefon */
 .row-progress {
   display: none;
 }
@@ -904,6 +1002,17 @@ table.monitor tbody tr.is-child td.order-num-cell {
   display: block;
   height: 100%;
   transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+table.monitor td.percent-cell .percent-bar__fill {
+  display: none;
+}
+
+/* Matka grupy: pełna wysokość wiersza pod % (bez luk) */
+table.monitor tbody tr.is-group-mother,
+table.monitor tbody tr.is-group-fill {
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .percent-bar--grow .percent-bar__fill {
@@ -953,6 +1062,24 @@ table.monitor tbody tr.is-child td.order-num-cell {
   font-variant-numeric: tabular-nums;
   text-align: center;
   line-height: 0.95;
+  white-space: nowrap;
+}
+
+/* Widok 1: % przy prawej krawędzi wiersza */
+table.monitor .percent-bar__label {
+  font-size: clamp(0.825rem, 2.44vh, 1.2rem);
+  line-height: 1;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  letter-spacing: -0.02em;
+  transform: none;
+  justify-content: flex-end;
+  padding-right: 0.4rem;
+  text-align: right;
+}
+
+table.monitor .percent-bar {
+  justify-content: flex-end;
 }
 
 .empty,
@@ -1475,14 +1602,14 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 
 /* Klaster grupy: matka + dzieci + szara poświata (czytelne, że to grupa) */
 .pb-cluster {
-  --pb-mother-h: 248px;
+  --pb-mother-h: 186px;
   --pb-child-size: calc(var(--pb-mother-h) * 0.8);
-  --pb-child-gap: 0.4rem;
+  --pb-child-gap: 0.3rem;
   display: inline-flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.85rem 1rem;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
   background: radial-gradient(
     ellipse 85% 75% at 50% 50%,
     rgba(180, 190, 200, 0.5) 0%,
@@ -1498,14 +1625,14 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 }
 
 .pb-cluster:has(.pb-card--pickup) {
-  --pb-mother-h: 168px;
-  --pb-child-size: 168px;
+  --pb-mother-h: 126px;
+  --pb-child-size: 126px;
   /* Sekcja Do odbioru — bez szarego tła klastra, jednakowe kafelki */
   background: transparent;
   border: none;
-  padding: 0.25rem 0;
+  padding: 0.2rem 0;
   filter: none;
-  gap: 0.65rem;
+  gap: 0.5rem;
 }
 
 .pb-cluster--solo {
@@ -1542,21 +1669,21 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 }
 
 .pb-card--mother .pb-group-icon svg {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
 }
 
 .pb-card--pickup.pb-card--mother .pb-group-icon svg {
-  width: 56px;
-  height: 56px;
+  width: 42px;
+  height: 42px;
 }
 
 .pb-card {
   position: relative;
-  width: 190px;
-  height: 168px;
-  border: 2.5px solid #66bb6a;
-  border-radius: 8px;
+  width: 143px;
+  height: 126px;
+  border: 2px solid #66bb6a;
+  border-radius: 6px;
   background: #eceff1;
   overflow: hidden;
   padding: 0;
@@ -1566,13 +1693,13 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 }
 
 .pb-card--mother {
-  width: 252px;
+  width: 246px; /* ~30% szersza — OwnNumber */
   height: var(--pb-mother-h);
   border-color: #43a047;
   box-shadow:
     inset 0 0 0 1px rgba(67, 160, 71, 0.25),
     0 0 0 1px rgba(140, 150, 160, 0.35),
-    0 0 18px 4px rgba(120, 130, 140, 0.42);
+    0 0 14px 3px rgba(120, 130, 140, 0.42);
 }
 
 .pb-card--child {
@@ -1585,16 +1712,16 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     0 0 14px 3px rgba(120, 130, 140, 0.38);
 }
 
-/* Do odbioru — większe, jednakowe; font numeru jak na produkcji */
+/* Do odbioru — jednakowe; font numeru jak na produkcji */
 .pb-card--pickup,
 .pb-card--pickup.pb-card--mother,
 .pb-card--pickup.pb-card--child {
-  width: 190px;
-  height: 168px;
-  border-width: 2.5px;
+  width: 143px;
+  height: 126px;
+  border-width: 2px;
   box-shadow:
     0 0 0 1px rgba(140, 150, 160, 0.28),
-    0 0 14px 3px rgba(120, 130, 140, 0.35);
+    0 0 10px 2px rgba(120, 130, 140, 0.35);
 }
 
 .pb-card--pickup.pb-card--mother {
@@ -1608,7 +1735,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 .pb-card--pickup .pb-card__id,
 .pb-card--pickup.pb-card--mother .pb-card__id,
 .pb-card--pickup.pb-card--child .pb-card__id {
-  font-size: 3.55rem !important; /* jak produkcja × 1.4 */
+  font-size: 2.66rem !important;
   font-weight: 900;
   letter-spacing: -0.05em;
 }
@@ -1640,6 +1767,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   background: rgba(255, 255, 255, 0.22) !important;
 }
 
+.pb-card--rejected .pb-card__own,
 .pb-card--rejected .pb-card__id,
 .pb-card--rejected .pb-card__pct {
   color: #fff !important;
@@ -1653,15 +1781,26 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
+  gap: 0.2rem;
+  padding: 0.2rem 0.25rem;
+  box-sizing: border-box;
 }
 
 .pb-card--child .pb-card__body {
-  gap: 0.12rem;
+  gap: 0.08rem;
+}
+
+.pb-card__id-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.08rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .pb-card__id {
-  font-size: 3.55rem; /* ~2.55 × 1.4 */
+  font-size: 2.66rem;
   font-weight: 900;
   color: #111;
   letter-spacing: -0.05em;
@@ -1670,26 +1809,50 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   font-variant-numeric: tabular-nums;
 }
 
+.pb-card__own {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  line-height: 1.1;
+  text-align: center;
+  padding: 0 0.2rem;
+}
+
 .pb-card--mother .pb-card__id {
-  font-size: 5.1rem; /* ~3.65 × 1.4 */
+  font-size: 3.825rem;
 }
 
 .pb-card--child .pb-card__id {
-  font-size: 3.55rem; /* ~2.55 × 1.4 */
+  font-size: 2.66rem;
+}
+
+.pb-card--mother .pb-card__own {
+  font-size: 0.85rem;
+  max-width: 100%;
+  padding: 0 0.4rem;
+}
+
+.pb-card--child .pb-card__own {
+  font-size: 0.7rem;
 }
 
 .pb-card__pct {
-  font-size: 1.55rem;
+  font-size: 1.16rem;
   font-weight: 800;
   color: #111;
 }
 
 .pb-card--mother .pb-card__pct {
-  font-size: 1.75rem;
+  font-size: 1.3rem;
 }
 
 .pb-card--child .pb-card__pct {
-  font-size: 1.25rem;
+  font-size: 0.94rem;
 }
 
 .pb-lane--pickup {
@@ -1826,29 +1989,29 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .pb-cluster {
-    --pb-mother-h: 220px;
+    --pb-mother-h: 165px;
   }
 
   .pb-cluster:has(.pb-card--pickup) {
-    --pb-mother-h: 152px;
-    --pb-child-size: 152px;
+    --pb-mother-h: 114px;
+    --pb-child-size: 114px;
   }
 
   .pb-card--mother {
-    width: 220px;
+    width: 215px;
   }
 
   .pb-card--pickup,
   .pb-card--pickup.pb-card--mother,
   .pb-card--pickup.pb-card--child {
-    width: 170px;
-    height: 150px;
+    width: 128px;
+    height: 113px;
   }
 
   .pb-card--pickup .pb-card__id,
   .pb-card--pickup.pb-card--mother .pb-card__id,
   .pb-card--pickup.pb-card--child .pb-card__id {
-    font-size: 3.1rem !important;
+    font-size: 2.33rem !important;
   }
 
   table.monitor {
@@ -1861,26 +2024,127 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   table.monitor tbody tr {
-    height: 3.6rem;
+    height: 2.7rem;
   }
 
   .percent-cell {
-    width: 7.5rem;
-    min-width: 7.5rem;
-    max-width: 8.5rem;
+    width: 5.6rem;
+    min-width: 5.6rem;
+    max-width: 6.4rem;
+    height: 100%;
   }
 
   .order-num-col,
   .order-num-cell {
-    width: 5.4rem;
-    min-width: 5.4rem;
-    max-width: 5.4rem;
+    width: auto;
+    min-width: 11rem;
+    max-width: none;
+  }
+
+  .order-num__main {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 0.35rem;
+  }
+
+  .order-num__own {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    text-align: left;
+    flex-shrink: 0;
   }
 
   .desc-col,
   .desc-cell {
-    width: 150px;
-    max-width: 150px;
+    width: 180px;
+    max-width: 180px;
+  }
+
+  /* OwnNumber jest obok Id — ukryj kolumnę opisu (bez duplikatu pod numerem) */
+  .desc-col,
+  .desc-cell {
+    display: none;
+  }
+
+  /* Pełna wysokość wiersza — zieleń postępu L→P */
+  table.monitor tbody tr {
+    position: relative;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  table.monitor th,
+  table.monitor td {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  table.monitor td.row-progress {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    padding: 0 !important;
+    border: none !important;
+    width: auto;
+    height: auto;
+  }
+
+  .row-progress__fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    height: auto;
+  }
+
+  table.monitor td:not(.row-progress) {
+    position: relative;
+    z-index: 1;
+    background: transparent !important;
+  }
+
+  table.monitor tbody tr.is-child,
+  table.monitor tbody tr.is-group-mother,
+  table.monitor tbody tr.is-group-fill,
+  table.monitor tbody tr:hover {
+    background-color: transparent;
+  }
+
+  table.monitor td.percent-cell {
+    width: 3.4rem;
+    min-width: 3.4rem;
+    max-width: 3.4rem;
+    z-index: 2;
+  }
+
+  table.monitor td.percent-cell .percent-bar {
+    position: relative;
+    top: auto;
+    bottom: auto;
+    height: 100%;
+    min-height: 2.7rem;
+    width: 100%;
+    background: transparent;
+    border-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  table.monitor td.percent-cell .percent-bar__fill {
+    display: none;
+  }
+
+  table.monitor tbody tr.is-done .order-num__value,
+  table.monitor tbody tr.is-done .order-num__own,
+  table.monitor tbody tr.is-done .percent-bar__label {
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -1910,13 +2174,13 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 
   .pb-cluster {
     flex-wrap: wrap;
-    --pb-mother-h: 180px;
-    padding: 0.55rem 0.65rem;
+    --pb-mother-h: 135px;
+    padding: 0.4rem 0.5rem;
   }
 
   .pb-cluster:has(.pb-card--pickup) {
-    --pb-mother-h: 132px;
-    --pb-child-size: 132px;
+    --pb-mother-h: 99px;
+    --pb-child-size: 99px;
   }
 
   .pb-cluster__children {
@@ -1925,49 +2189,57 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .pb-card {
-    width: 132px;
-    height: 132px;
+    width: 99px;
+    height: 99px;
   }
 
   .pb-card--mother {
-    width: 176px;
+    width: 172px;
   }
 
   .pb-card--pickup,
   .pb-card--pickup.pb-card--mother,
   .pb-card--pickup.pb-card--child {
-    width: 132px;
-    height: 132px;
+    width: 99px;
+    height: 99px;
   }
 
   .pb-card--pickup .pb-card__id,
   .pb-card--pickup.pb-card--mother .pb-card__id,
   .pb-card--pickup.pb-card--child .pb-card__id {
-    font-size: 2.8rem !important;
+    font-size: 2.1rem !important;
   }
 
   .pb-card__id {
-    font-size: 2.6rem;
+    font-size: 1.95rem;
   }
 
   .pb-card--mother .pb-card__id {
-    font-size: 3.35rem;
+    font-size: 2.5rem;
   }
 
   .pb-card--child .pb-card__id {
-    font-size: 2.4rem;
+    font-size: 1.8rem;
+  }
+
+  .pb-card__own {
+    font-size: 0.62rem;
+  }
+
+  .pb-card--mother .pb-card__own {
+    font-size: 0.68rem;
   }
 
   .pb-card__pct {
-    font-size: 1.15rem;
+    font-size: 0.86rem;
   }
 
   .pb-card--mother .pb-card__pct {
-    font-size: 1.25rem;
+    font-size: 0.94rem;
   }
 
   .pb-card--child .pb-card__pct {
-    font-size: 1rem;
+    font-size: 0.75rem;
   }
 
   .pb-lane__icon--car svg {
@@ -2000,15 +2272,25 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     display: none;
   }
 
-  /* Jak na desktopie: 15px odstępu między zleceniami grupowymi */
   table.monitor tbody.order-group {
     display: block;
-    margin-top: 15px;
-    margin-bottom: 15px;
+    margin-top: 0;
+    margin-bottom: 0;
+    background: transparent;
+  }
+
+  table.monitor tbody.order-group--simple {
+    padding-top: 0;
+    padding-bottom: 3px;
+  }
+
+  table.monitor tbody.order-group--multi {
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
 
   table.monitor tbody.order-group + tbody.order-group {
-    margin-top: 15px;
+    margin-top: 0;
   }
 
   table.monitor tbody.order-group tr:first-child td,
@@ -2019,18 +2301,17 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 
   table.monitor tbody tr {
     display: grid;
-    grid-template-columns: minmax(3.6rem, auto) minmax(0, 1fr);
-    grid-template-areas:
-      'num pct'
-      'desc desc';
-    column-gap: 0.4rem;
-    row-gap: 0.12rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'num pct';
+    column-gap: 0.3rem;
+    row-gap: 0;
     position: relative;
     height: auto;
-    min-height: 0;
-    padding: 0.38rem 0.55rem;
+    min-height: 2.35rem;
+    padding: 0 0.4rem;
     margin: 0;
-    background: #fff;
+    /* białe tło pod gradientem % — szary tylko w paddingu grupy */
+    background-color: #fff;
     border: none;
     border-bottom: 1px solid #dce3ea;
     box-sizing: border-box;
@@ -2042,16 +2323,18 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   table.monitor tbody tr.is-child {
-    background: transparent;
+    background-color: #fff;
     padding-left: 0.85rem;
   }
 
-  table.monitor tbody tr.is-group-mother {
+  table.monitor tbody tr.is-group-mother,
+  table.monitor tbody tr.is-group-fill {
+    background-color: #fff;
     border-color: #c5d0da;
   }
 
   table.monitor tbody tr:hover {
-    background: transparent;
+    background-color: #fff;
   }
 
   table.monitor td {
@@ -2065,16 +2348,21 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 
   table.monitor td.row-progress {
     display: block;
-    grid-column: 1 / -1;
-    grid-row: 1 / -1;
+    position: absolute;
+    inset: 0;
+    grid-column: auto;
+    grid-row: auto;
     z-index: 0;
     pointer-events: none;
+    padding: 0 !important;
   }
 
   .row-progress__fill {
     position: absolute;
-    inset: 0 auto 0 0;
-    height: 100%;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    height: auto;
   }
 
   table.monitor td.order-num-cell {
@@ -2086,25 +2374,37 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     align-items: center;
     justify-content: flex-start;
     text-align: left;
+    align-self: stretch;
+    min-height: 2.35rem;
   }
 
   table.monitor td.percent-cell {
     grid-area: pct;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    height: 1.55rem;
-    align-self: center;
+    width: 3.2rem !important;
+    min-width: 3.2rem !important;
+    max-width: 3.2rem !important;
+    height: auto;
+    min-height: 2.35rem;
+    align-self: stretch;
+    z-index: 2;
   }
 
-  /* Pasek % tylko etykieta — wypełnienie idzie przez cały wiersz */
+  /* Pasek % tylko etykieta — komórka ma stałą szerokość (absolute nie zwija kolumny) */
   table.monitor td.percent-cell .percent-bar {
     position: relative;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    right: auto;
     inset: auto;
     height: 100%;
+    min-height: 2.35rem;
     width: 100%;
     border: none;
     background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
   }
 
   table.monitor td.percent-cell .percent-bar__fill {
@@ -2112,20 +2412,6 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   table.monitor td.desc-cell {
-    grid-area: desc;
-    width: auto !important;
-    max-width: none !important;
-  }
-
-  .desc-cell .order-desc {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 0.82rem;
-    line-height: 1.2;
-  }
-
-  .desc-cell .muted {
     display: none;
   }
 
@@ -2140,9 +2426,21 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     min-width: 1.1rem;
   }
 
+  .order-num__main {
+    justify-content: flex-start;
+  }
+
   .order-num__value {
-    font-size: 2.2rem;
+    font-size: 1.65rem;
     text-align: left;
+    width: auto;
+  }
+
+  .order-num__own {
+    text-align: left;
+    font-size: 0.825rem;
+    max-width: none;
+    color: var(--ll-navy);
   }
 
   .order-num--mother {
@@ -2150,8 +2448,16 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     justify-items: start;
   }
 
+  .order-num--mother .order-num__main {
+    justify-content: flex-start;
+  }
+
   .order-num--mother .order-num__value {
-    font-size: 2.64rem;
+    font-size: 1.98rem;
+  }
+
+  .order-num--mother .order-num__own {
+    font-size: 0.99rem;
   }
 
   .order-num--child {
@@ -2169,26 +2475,44 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .order-num--child .order-num__value {
-    font-size: 2.1rem;
+    font-size: 1.575rem;
+    width: auto;
+  }
+
+  .order-num--child .order-num__own {
+    font-size: 0.79rem;
     width: auto;
   }
 
   .order-num-cell .group-star svg {
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+
+  .order-num--mother .order-num__icon {
+    min-width: 1.7rem;
   }
 
   .order-num-cell .group-child-line svg {
-    width: 0.85rem;
-    height: 0.85rem;
+    width: 0.65rem;
+    height: 0.65rem;
   }
 
-  .percent-bar__label {
-    font-size: 0.95rem;
+  table.monitor .percent-bar__label {
+    font-size: clamp(0.71rem, 2.1vh, 1.01rem);
+    writing-mode: horizontal-tb;
+    transform: none;
+    letter-spacing: -0.02em;
+    justify-content: flex-end;
+    padding-right: 0.1rem;
+    text-align: right;
+    width: 100%;
+    color: var(--ll-navy);
   }
 
   /* Tekst czytelny na jasnej i ciemnej zieleni (halo) */
   table.monitor tbody tr .order-num__value,
+  table.monitor tbody tr .order-num__own,
   table.monitor tbody tr .order-desc,
   table.monitor tbody tr .percent-bar__label {
     text-shadow:
@@ -2199,6 +2523,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 
   /* 100% — pełny ciemnozielony rząd, jasny tekst */
   table.monitor tbody tr.is-done .order-num__value,
+  table.monitor tbody tr.is-done .order-num__own,
   table.monitor tbody tr.is-done .order-desc,
   table.monitor tbody tr.is-done .percent-bar__label {
     color: #fff;
@@ -2222,19 +2547,23 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .pb-cluster {
-    --pb-mother-h: 160px;
+    --pb-mother-h: 120px;
   }
 
   .pb-card--mother {
-    width: 156px;
+    width: 152px;
   }
 
   .pb-card--child .pb-card__id {
-    font-size: 2rem;
+    font-size: 1.5rem;
   }
 
   .pb-card--mother .pb-card__id {
-    font-size: 2.85rem;
+    font-size: 2.14rem;
+  }
+
+  .pb-card__own {
+    font-size: 0.58rem;
   }
 
   .topbar .btn,

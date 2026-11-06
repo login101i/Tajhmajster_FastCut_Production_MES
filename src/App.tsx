@@ -628,7 +628,14 @@ export default function App() {
             {prodTest ? <p className="lede">{t('ledeProdTest')}</p> : null}
 
             <div
-              className={`panel panel--flush-top ${view === 3 && !prodTest ? 'panel--flat' : ''}`}
+              className={[
+                'panel',
+                'panel--flush-top',
+                view === 3 && !prodTest ? 'panel--flat' : '',
+                view === 1 && !prodTest ? 'panel--ghost' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
               {error ? <div className="error">{error}</div> : null}
               {!error && prodTest ? (
@@ -647,7 +654,6 @@ export default function App() {
               {!error && !prodTest && view === 1 ? (
                 <OrderList
                   orders={orders}
-                  onSelect={setSelectedId}
                   focusOrderId={focusOrderId}
                   onFocusHandled={() => setFocusOrderId(null)}
                   animOrderId={ANIM_DEMO_ORDER_ID}

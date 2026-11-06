@@ -14,7 +14,7 @@
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.1.08';
+export const APP_VERSION = 'V.1.09';
 
 /** Auto-odświeżanie listy (ms). 30_000 = 30 s, 60_000 = 60 s. */
 export const AUTO_REFRESH_MS = 60_000;

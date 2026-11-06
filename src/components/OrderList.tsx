@@ -13,14 +13,12 @@ import { PercentBar } from './PercentBar';
 
 export function OrderList({
   orders,
-  onSelect,
   focusOrderId = null,
   onFocusHandled,
   animOrderId = null,
   animPlayToken = 0,
 }: {
   orders: OrderRow[];
-  onSelect: (id: number) => void;
   /** Scroll this order (or its group mother) to the top of the list. */
   focusOrderId?: number | null;
   onFocusHandled?: () => void;
@@ -31,6 +29,7 @@ export function OrderList({
   const { t } = useI18n();
   const groups = buildDisplayGroups(orders, trackProductionGains(orders));
   const focusRef = useRef<HTMLTableRowElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
   const onFocusHandledRef = useRef(onFocusHandled);
   onFocusHandledRef.current = onFocusHandled;
 
@@ -43,18 +42,63 @@ export function OrderList({
     return () => window.cancelAnimationFrame(id);
   }, [focusOrderId]);
 
+  /* Lewy przycisk myszy + przeciągnięcie = scroll pionowy (jak touch) */
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+
+    let dragging = false;
+    let startY = 0;
+    let startScroll = 0;
+
+    const scrollRoot = () =>
+      (document.scrollingElement as HTMLElement | null) ?? document.documentElement;
+
+    const onDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      dragging = true;
+      startY = e.clientY;
+      startScroll = scrollRoot().scrollTop;
+      el.classList.add('is-drag-scrolling');
+    };
+
+    const onMove = (e: MouseEvent) => {
+      if (!dragging) return;
+      e.preventDefault();
+      scrollRoot().scrollTop = startScroll - (e.clientY - startY);
+    };
+
+    const onUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      el.classList.remove('is-drag-scrolling');
+    };
+
+    el.addEventListener('mousedown', onDown);
+    window.addEventListener('mousemove', onMove, { passive: false });
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('mouseleave', onUp);
+    return () => {
+      el.removeEventListener('mousedown', onDown);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('mouseleave', onUp);
+      el.classList.remove('is-drag-scrolling');
+    };
+  }, [groups.length]);
+
   if (groups.length === 0) {
     return <div className="empty">{t('emptyOrders')}</div>;
   }
 
   return (
-    <div className="table-wrap">
+    <div className="table-wrap table-wrap--drag-scroll" ref={wrapRef}>
       <table className="monitor">
         <thead>
           <tr>
             <th className="order-num-col">{t('colOrderNo')}</th>
-            <th className="percent-cell">{t('colStatus')}</th>
             <th className="desc-col">{t('colDesc')}</th>
+            <th className="percent-cell">{t('colStatus')}</th>
           </tr>
         </thead>
         {groups.map((group) => {
@@ -79,8 +123,14 @@ export function OrderList({
               ? motherId
               : null;
 
+          const isMultiGroup =
+            group.length > 1 || group.some((r) => Number(r.IsGroupOrder) === 1);
+
           return (
-            <tbody key={motherId} className="order-group">
+            <tbody
+              key={motherId}
+              className={`order-group${isMultiGroup ? ' order-group--multi' : ' order-group--simple'}`}
+            >
               {group.map((row) => {
                 const isGroup = Number(row.IsGroupOrder) === 1;
                 const isGroupMother =
@@ -105,7 +155,13 @@ export function OrderList({
                     ]
                       .filter(Boolean)
                       .join(' ') || undefined}
-                    onClick={() => onSelect(row.Id)}
+                    style={
+                      rejected
+                        ? undefined
+                        : {
+                            backgroundImage: `linear-gradient(90deg, ${fillColor} ${pct}%, transparent ${pct}%)`,
+                          }
+                    }
                   >
                     <td className="row-progress" aria-hidden>
                       <span
@@ -131,24 +187,37 @@ export function OrderList({
                             <GroupChildLine title={t('child')} />
                           ) : null}
                         </span>
-                        <span className="order-num__value">{orderIdLabel(row)}</span>
+                        <span className="order-num__main">
+                          <span className="order-num__value">{orderIdLabel(row)}</span>
+                          {row.OwnNumber ? (
+                            <span className="order-num__own" title={row.OwnNumber}>
+                              {row.OwnNumber}
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="desc-cell">
+                      <div className="order-desc order-desc--own">
+                        {row.OwnNumber || '—'}
+                      </div>
+                      <div className="order-desc order-desc--description">
+                        {row.Description || row.FormName || '—'}
+                      </div>
+                      <div className="muted" style={{ fontSize: '0.85rem', marginTop: '0.15rem' }}>
+                        {[row.CompanyName, row.MaterialsSymbols].filter(Boolean).join(' · ')}
                       </div>
                     </td>
                     <td className="percent-cell">
                       <PercentBar
                         percent={row.ProductionPrc}
+                        integerOnly
                         isGroup={isGroupMother}
                         playToken={
                           animOrderId != null && row.Id === animOrderId ? animPlayToken : 0
                         }
                       />
                       <span className="sr-only">{pctLabel}</span>
-                    </td>
-                    <td className="desc-cell">
-                      <div className="order-desc">{row.Description || row.FormName || '—'}</div>
-                      <div className="muted" style={{ fontSize: '0.85rem', marginTop: '0.15rem' }}>
-                        {[row.CompanyName, row.MaterialsSymbols].filter(Boolean).join(' · ')}
-                      </div>
                     </td>
                   </tr>
                 );

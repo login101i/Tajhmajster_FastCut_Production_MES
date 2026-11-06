@@ -84,7 +84,7 @@ function OrderCard({
         .filter(Boolean)
         .join(' ')}
       onClick={() => onSelect(order.Id)}
-      title={`${order.Id} · ${pct.toFixed(0)}%`}
+      title={[order.Id, order.OwnNumber, `${pct.toFixed(0)}%`].filter(Boolean).join(' · ')}
     >
       <span
         className="pb-card__fill"
@@ -92,11 +92,18 @@ function OrderCard({
         aria-hidden
       />
       <span className="pb-card__body">
-        <span className="pb-card__id">{order.Id}</span>
+        <span className="pb-card__id-block">
+          <span className="pb-card__id">{order.Id}</span>
+          {order.OwnNumber ? (
+            <span className="pb-card__own" title={order.OwnNumber}>
+              {order.OwnNumber}
+            </span>
+          ) : null}
+        </span>
         {!pickup && showGroupIcon ? (
           <GroupOrderIcon compact={role === 'child'} />
         ) : null}
-        {!pickup ? (
+        {!pickup && role !== 'mother' ? (
           <span className="pb-card__pct">{pct.toFixed(0)}%</span>
         ) : null}
       </span>
@@ -122,7 +129,10 @@ function ClusterBlock({
   }
 
   const mother = cluster.members.find((o) => o.Id === cluster.rootId);
-  const children = cluster.members.filter((o) => o.Id !== cluster.rootId);
+  const children = cluster.members
+    .filter((o) => o.Id !== cluster.rootId)
+    .slice()
+    .sort((a, b) => b.Id - a.Id);
   const iconOnFirstChild = !mother && children.length > 0;
 
   return (
