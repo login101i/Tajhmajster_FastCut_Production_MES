@@ -315,6 +315,7 @@ export function arrangeForCssGridColumnMajor<T>(items: T[], cols = 2): T[] {
 export function buildDisplayGroups(
   orders: OrderRow[],
   gainTimes?: Map<number, number>,
+  opts?: { columnMajorChildren?: boolean },
 ): Array<Array<OrderRow & { depth: number }>> {
   const rows = buildDisplayRows(orders, gainTimes);
   const groups: Array<Array<OrderRow & { depth: number }>> = [];
@@ -331,7 +332,11 @@ export function buildDisplayGroups(
   }
   if (current.length) groups.push(current);
 
-  /* Matka zostaje na górze; dzieci w 2 kolumnach = jeden ciąg % (kolumna po kolumnie) */
+  const columnMajor = opts?.columnMajorChildren !== false;
+
+  /* Tablet/desktop 2 kol.: ciąg % kolumna po kolumnie. Telefon 1 kol.: czysty sort % ↓ */
+  if (!columnMajor) return groups;
+
   return groups.map((group) => {
     if (group.length <= 2) return group;
     const mother = group[0];

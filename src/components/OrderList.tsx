@@ -35,10 +35,13 @@ function childOrderKey(groups: DisplayRow[][]): string {
 }
 
 /**
- * DEV: zamiana pionowa — w siatce 2 kol. wiersze 0 i 2 to ta sama kolumna
- * (góra ↔ dół). Przy 2 dzieciach: zwykła zamiana pary.
+ * DEV: zamiana pionowa dwóch sąsiednich podzleceń (góra ↔ dół).
+ * Na 2 kol. (tablet): indeksy 0 i 2 = ta sama kolumna; na 1 kol.: 0 i 1.
  */
-function applyDemoChildSwap(groups: DisplayRow[][]): DisplayRow[][] {
+function applyDemoChildSwap(
+  groups: DisplayRow[][],
+  twoCol: boolean,
+): DisplayRow[][] {
   const idx = groups.findIndex((g) => g.filter((r) => r.depth > 0).length >= 2);
   if (idx < 0) return groups;
   return groups.map((g, i) => {
@@ -47,11 +50,8 @@ function applyDemoChildSwap(groups: DisplayRow[][]): DisplayRow[][] {
     const kids = g.slice(1);
     if (kids.length < 2) return g;
     const swapped = kids.slice();
-    if (kids.length >= 3) {
-      [swapped[0], swapped[2]] = [swapped[2], swapped[0]];
-    } else {
-      [swapped[0], swapped[1]] = [swapped[1], swapped[0]];
-    }
+    const other = twoCol && kids.length >= 3 ? 2 : 1;
+    [swapped[0], swapped[other]] = [swapped[other], swapped[0]];
     return mother ? [mother, ...swapped] : swapped;
   });
 }
@@ -76,9 +76,14 @@ export function OrderList({
 }) {
   const { t } = useI18n();
   const gainTimes = trackProductionGains(orders).gainTimes;
-  const baseGroups = buildDisplayGroups(orders, gainTimes);
   const [demoSwapped, setDemoSwapped] = useState(false);
   const [focusFading, setFocusFading] = useState(false);
+  /* 1 kol. <520px (wąski telefon); 2 kol. od szerokiego telefonu w górę */
+  const [twoColChildren, setTwoColChildren] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(min-width: 520px)').matches,
+  );
   const focusRef = useRef<HTMLTableRowElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const flipPositionsRef = useRef<Map<string, { left: number; top: number }>>(
@@ -88,13 +93,32 @@ export function OrderList({
   onFocusHandledRef.current = onFocusHandled;
 
   useEffect(() => {
+    const mq = window.matchMedia('(min-width: 520px)');
+    const sync = () => setTwoColChildren(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
     if (swapAnimToken <= 0) return;
     setDemoSwapped((v) => !v);
   }, [swapAnimToken]);
 
+  const baseGroups = useMemo(
+    () =>
+      buildDisplayGroups(orders, gainTimes, {
+        columnMajorChildren: twoColChildren,
+      }),
+    [orders, gainTimes, twoColChildren],
+  );
+
   const groups = useMemo(
-    () => (demoSwapped ? applyDemoChildSwap(baseGroups) : baseGroups),
-    [baseGroups, demoSwapped],
+    () =>
+      demoSwapped
+        ? applyDemoChildSwap(baseGroups, twoColChildren)
+        : baseGroups,
+    [baseGroups, demoSwapped, twoColChildren],
   );
 
   const flipKey = childOrderKey(groups);
