@@ -224,36 +224,62 @@ export default function App() {
     return () => document.body.classList.remove('view-board');
   }, [view, prodTest]);
 
-  // Ukryj header po braku ruchu: telefon 5 s, tablet/desktop 10 s
+  // Header: chowa się po bezruchu. Scroll w dół NIE pokazuje; scroll w górę / mysz — tak.
   useEffect(() => {
     let timer: number | undefined;
+    let lastScrollY = window.scrollY;
+
     const hideDelay = () =>
       window.matchMedia(`(max-width: ${HEADER_PHONE_MAX_PX}px)`).matches
         ? HEADER_HIDE_MS_PHONE
         : HEADER_HIDE_MS_WIDE;
 
-    const bump = () => {
-      /* Podczas przejścia z board — nie ruszaj headera (zostaje widoczny) */
-      if (focusNavLockRef.current) return;
-      setHeaderHidden(false);
+    const scheduleHide = () => {
       if (timer) window.clearTimeout(timer);
       timer = window.setTimeout(() => setHeaderHidden(true), hideDelay());
     };
 
-    const events: Array<keyof WindowEventMap> = [
+    const showHeader = () => {
+      if (focusNavLockRef.current) return;
+      setHeaderHidden(false);
+      scheduleHide();
+    };
+
+    const onScroll = () => {
+      if (focusNavLockRef.current) return;
+      const y = window.scrollY;
+      const dy = y - lastScrollY;
+      lastScrollY = y;
+      /* Tylko scroll w górę odkrywa ukryty header */
+      if (dy < -4) showHeader();
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (focusNavLockRef.current) return;
+      if (e.deltaY < 0) showHeader();
+    };
+
+    const activityEvents: Array<keyof WindowEventMap> = [
       'mousemove',
       'mousedown',
       'touchstart',
-      'touchmove',
       'keydown',
-      'scroll',
-      'wheel',
     ];
-    bump();
-    for (const ev of events) window.addEventListener(ev, bump, { passive: true });
+
+    showHeader();
+    for (const ev of activityEvents) {
+      window.addEventListener(ev, showHeader, { passive: true });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('wheel', onWheel, { passive: true });
+
     return () => {
       if (timer) window.clearTimeout(timer);
-      for (const ev of events) window.removeEventListener(ev, bump);
+      for (const ev of activityEvents) {
+        window.removeEventListener(ev, showHeader);
+      }
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('wheel', onWheel);
     };
   }, []);
 
