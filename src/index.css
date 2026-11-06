@@ -606,27 +606,158 @@ table.monitor {
   background: transparent;
 }
 
+/* Widok 1 — ten sam layout co tablet: kompaktowa lista na wszystkich ekranach */
+table.monitor {
+  min-width: 0 !important;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table.monitor thead {
+  display: none;
+}
+
 table.monitor tbody.order-group {
+  display: block;
   margin-top: 0;
   margin-bottom: 0;
   background: transparent;
 }
 
-/* Proste zlecenie: odstęp 3px — przezroczysty (widać tło strony) */
-table.monitor tbody.order-group--simple tr:last-child td {
-  border-bottom: 3px solid transparent;
-  background-clip: padding-box;
+/* Te same luki co na małym tablecie: 3px / 8px (widać tło strony) */
+table.monitor tbody.order-group--simple {
+  padding-top: 0;
+  padding-bottom: 3px;
 }
 
-/* Zlecenie grupowe: odstęp 8px nad i pod — przezroczysty */
-table.monitor tbody.order-group--multi tr:first-child td {
-  border-top: 8px solid transparent;
-  background-clip: padding-box;
+table.monitor tbody.order-group--multi {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  column-gap: 0.35rem;
+  row-gap: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
-table.monitor tbody.order-group--multi tr:last-child td {
-  border-bottom: 8px solid transparent;
-  background-clip: padding-box;
+table.monitor tbody.order-group tr:first-child td,
+table.monitor tbody.order-group tr:last-child td {
+  border-top: none;
+  border-bottom: none;
+}
+
+table.monitor tbody.order-group--multi tr.is-group-mother {
+  grid-column: 1 / -1;
+}
+
+table.monitor tbody tr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'num pct';
+  width: auto;
+  min-width: 0;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  background-color: #fff;
+}
+
+table.monitor td.desc-cell,
+table.monitor th.desc-col {
+  display: none !important;
+}
+
+table.monitor td.order-num-cell {
+  grid-area: num;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+table.monitor td.percent-cell {
+  grid-area: pct;
+  width: 5.1rem !important;
+  min-width: 5.1rem !important;
+  max-width: 5.1rem !important;
+}
+
+table.monitor td.row-progress {
+  display: none;
+}
+
+.order-num-col,
+.order-num-cell {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+.order-num__main {
+  flex-direction: row !important;
+  align-items: baseline !important;
+  justify-content: flex-start !important;
+  gap: 0.35rem !important;
+}
+
+.order-num__own {
+  max-width: none !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  text-align: left !important;
+  flex-shrink: 0 !important;
+}
+
+.order-num__value {
+  text-align: left !important;
+}
+
+/* Duży ekran: ikona + numer z lewej, % z prawej */
+@media (min-width: 1101px) {
+  table.monitor tbody tr {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'num pct';
+    width: 100%;
+  }
+
+  table.monitor tbody.order-group--simple tr,
+  table.monitor tbody.order-group--multi tr.is-group-mother {
+    width: 100%;
+  }
+
+  table.monitor td.order-num-cell {
+    justify-content: flex-start;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    padding-left: 0.45rem;
+  }
+
+  table.monitor .order-num,
+  table.monitor .order-num--mother,
+  table.monitor .order-num--child {
+    justify-content: start;
+    justify-items: start;
+    width: auto;
+  }
+
+  table.monitor .order-num__main {
+    justify-content: flex-start !important;
+  }
+
+  table.monitor td.percent-cell {
+    justify-self: end;
+    margin-left: auto;
+  }
+
+  table.monitor .percent-bar {
+    justify-content: flex-end;
+  }
+
+  table.monitor .percent-bar__label {
+    justify-content: flex-end;
+    text-align: right;
+    padding-right: 0.65rem;
+  }
 }
 
 table.monitor tbody tr.is-focus-order {
@@ -684,9 +815,10 @@ table.monitor td {
 }
 
 table.monitor tbody tr {
-  height: 3.2rem;
+  height: 4.8rem;
   cursor: grab;
   transition: background 0.12s ease;
+  background-color: #fff;
   background-repeat: no-repeat;
   background-size: 100% 100%;
 }
@@ -704,9 +836,9 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num-col {
-  width: 7.25rem;
-  min-width: 7.25rem;
-  max-width: 7.25rem;
+  width: 10.5rem;
+  min-width: 10.5rem;
+  max-width: 10.5rem;
 }
 
 .order-num-cell {
@@ -714,10 +846,10 @@ table.monitor tbody tr.is-child td.order-num-cell {
   white-space: nowrap;
   overflow: hidden;
   background: transparent;
-  width: 7.25rem;
-  min-width: 7.25rem;
-  max-width: 7.25rem;
-  padding: 0.15rem 0.3rem 0.15rem 0.15rem;
+  width: 10.5rem;
+  min-width: 10.5rem;
+  max-width: 10.5rem;
+  padding: 0.22rem 0.4rem 0.22rem 0.2rem;
   text-align: right;
   vertical-align: middle;
 }
@@ -738,9 +870,9 @@ table.monitor tbody tr.is-child td.order-num-cell {
 
 .order-num {
   display: grid;
-  grid-template-columns: 1.25rem minmax(0, 1fr);
+  grid-template-columns: 1.9rem minmax(0, 1fr);
   align-items: center;
-  column-gap: 0.12rem;
+  column-gap: 0.18rem;
   min-height: 90%;
   width: 100%;
 }
@@ -749,24 +881,24 @@ table.monitor tbody tr.is-child td.order-num-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  min-height: 1.15rem;
+  width: 1.9rem;
+  min-height: 1.7rem;
 }
 
 .order-num__main {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   flex-wrap: nowrap;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 0.05rem;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 0.35rem;
   min-width: 0;
-  width: 100%;
+  width: auto;
   max-width: 100%;
 }
 
 .order-num__value {
-  font-size: clamp(1.425rem, 4.2vh, 1.875rem);
+  font-size: clamp(2.14rem, 6.3vh, 2.81rem);
   font-weight: 800;
   color: var(--ll-navy);
   font-variant-numeric: tabular-nums;
@@ -784,7 +916,7 @@ table.monitor tbody tr.is-child td.order-num-cell {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: clamp(0.71rem, 2.1vh, 0.94rem);
+  font-size: clamp(1.07rem, 3.15vh, 1.41rem);
   font-weight: 800;
   color: var(--ll-navy);
   letter-spacing: -0.04em;
@@ -805,19 +937,19 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num--mother .order-num__main {
-  width: 100%;
-  align-items: flex-end;
-  justify-content: center;
+  width: auto;
+  align-items: baseline;
+  justify-content: flex-start;
 }
 
 .order-num--mother .order-num__value {
-  font-size: clamp(1.71rem, 5.04vh, 2.25rem);
+  font-size: clamp(2.57rem, 7.56vh, 3.38rem);
   width: auto;
   text-align: right;
 }
 
 .order-num--mother .order-num__own {
-  font-size: clamp(0.855rem, 2.52vh, 1.125rem);
+  font-size: clamp(1.28rem, 3.78vh, 1.69rem);
   text-align: left;
   color: var(--ll-navy);
 }
@@ -837,13 +969,13 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num--child .order-num__main {
-  width: 100%;
-  align-items: flex-end;
-  justify-content: center;
+  width: auto;
+  align-items: baseline;
+  justify-content: flex-start;
 }
 
 .order-num--child .order-num__value {
-  font-size: clamp(1.35rem, 3.9vh, 1.725rem);
+  font-size: clamp(2.03rem, 5.85vh, 2.59rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   text-align: right;
@@ -851,7 +983,7 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num--child .order-num__own {
-  font-size: clamp(0.675rem, 1.95vh, 0.86rem);
+  font-size: clamp(1.01rem, 2.93vh, 1.29rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   text-align: left;
@@ -879,7 +1011,7 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .desc-cell .order-desc {
-  font-size: 0.81rem;
+  font-size: 1.22rem;
   line-height: 1.25;
 }
 
@@ -922,13 +1054,13 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num-cell .group-star svg {
-  width: clamp(2rem, 6vh, 2.8rem);
-  height: clamp(2rem, 6vh, 2.8rem);
+  width: clamp(3rem, 9vh, 4.2rem);
+  height: clamp(3rem, 9vh, 4.2rem);
 }
 
 .order-num--mother .order-num__icon {
   width: auto;
-  min-width: 2.8rem;
+  min-width: 4.2rem;
 }
 
 .order-num-cell .group-child-line {
@@ -936,8 +1068,8 @@ table.monitor tbody tr.is-child td.order-num-cell {
 }
 
 .order-num-cell .group-child-line svg {
-  width: clamp(0.75rem, 2.25vh, 1rem);
-  height: clamp(0.75rem, 2.25vh, 1rem);
+  width: clamp(1.13rem, 3.4vh, 1.5rem);
+  height: clamp(1.13rem, 3.4vh, 1.5rem);
 }
 
 .order-desc {
@@ -1067,7 +1199,7 @@ table.monitor tbody tr.is-group-fill {
 
 /* Widok 1: % przy prawej krawędzi wiersza */
 table.monitor .percent-bar__label {
-  font-size: clamp(0.825rem, 2.44vh, 1.2rem);
+  font-size: clamp(1.24rem, 3.66vh, 1.8rem);
   line-height: 1;
   writing-mode: horizontal-tb;
   text-orientation: mixed;
@@ -1642,7 +1774,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   border-radius: 0;
 }
 
-/* Podzlecenia: jeden rząd gdy się mieszczą; zawijanie dopiero gdy brak miejsca */
+/* Podzlecenia */
 .pb-cluster__children {
   display: flex;
   flex-wrap: wrap;
@@ -1652,11 +1784,28 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   max-width: min(100%, calc(100vw - 22rem));
 }
 
-@media (min-width: 1400px) {
-  .pb-cluster__children {
-    flex-wrap: nowrap;
-    max-width: none;
-  }
+/* Widok 2: matka | podzlecenia w poziomie (jeden rząd) */
+.pb-cluster:not(.pb-cluster--solo):not(:has(.pb-card--pickup)) {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+
+.pb-cluster:not(:has(.pb-card--pickup)) .pb-cluster__children {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pb-child-gap);
+  max-width: min(100%, calc(100vw - 28rem));
+  width: auto;
+}
+
+.pb-grid {
+  align-items: flex-start;
 }
 
 .pb-group-icon {
@@ -1684,7 +1833,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   height: 126px;
   border: 2px solid #66bb6a;
   border-radius: 6px;
-  background: #eceff1;
+  background: #fff;
   overflow: hidden;
   padding: 0;
   display: block;
@@ -1693,7 +1842,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 }
 
 .pb-card--mother {
-  width: 246px; /* ~30% szersza — OwnNumber */
+  width: 344px; /* +40% szerokości — OwnNumber */
   height: var(--pb-mother-h);
   border-color: #43a047;
   box-shadow:
@@ -1998,7 +2147,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .pb-card--mother {
-    width: 215px;
+    width: 301px;
   }
 
   .pb-card--pickup,
@@ -2024,13 +2173,13 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   table.monitor tbody tr {
-    height: 2.7rem;
+    height: 4.05rem;
   }
 
   .percent-cell {
-    width: 5.6rem;
-    min-width: 5.6rem;
-    max-width: 6.4rem;
+    width: 8.4rem;
+    min-width: 8.4rem;
+    max-width: 9.6rem;
     height: 100%;
   }
 
@@ -2112,13 +2261,13 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   table.monitor tbody tr.is-group-mother,
   table.monitor tbody tr.is-group-fill,
   table.monitor tbody tr:hover {
-    background-color: transparent;
+    background-color: #fff;
   }
 
   table.monitor td.percent-cell {
-    width: 3.4rem;
-    min-width: 3.4rem;
-    max-width: 3.4rem;
+    width: 5.1rem;
+    min-width: 5.1rem;
+    max-width: 5.1rem;
     z-index: 2;
   }
 
@@ -2127,7 +2276,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     top: auto;
     bottom: auto;
     height: 100%;
-    min-height: 2.7rem;
+    min-height: 4.05rem;
     width: 100%;
     background: transparent;
     border-color: transparent;
@@ -2183,8 +2332,22 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     --pb-child-size: 99px;
   }
 
-  .pb-cluster__children {
-    flex-wrap: wrap;
+  /* Mały tablet: matka na górze, podzlecenia w wielu kolumnach (wykorzystaj szerokość) */
+  .pb-cluster:not(.pb-cluster--solo):not(:has(.pb-card--pickup)) {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .pb-cluster:not(:has(.pb-card--pickup)) .pb-cluster__children {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(5.5rem, var(--pb-child-size, 99px)));
+    justify-content: start;
+    align-content: start;
+    gap: var(--pb-child-gap);
+    width: 100%;
     max-width: 100%;
   }
 
@@ -2194,7 +2357,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .pb-card--mother {
-    width: 172px;
+    width: min(100%, 241px);
   }
 
   .pb-card--pickup,
@@ -2285,8 +2448,17 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   table.monitor tbody.order-group--multi {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 0.3rem;
+    row-gap: 0;
+    width: 100%;
     padding-top: 8px;
     padding-bottom: 8px;
+  }
+
+  table.monitor tbody.order-group--multi tr.is-group-mother {
+    grid-column: 1 / -1;
   }
 
   table.monitor tbody.order-group + tbody.order-group {
@@ -2307,7 +2479,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     row-gap: 0;
     position: relative;
     height: auto;
-    min-height: 2.35rem;
+    min-height: 3.5rem;
     padding: 0 0.4rem;
     margin: 0;
     /* białe tło pod gradientem % — szary tylko w paddingu grupy */
@@ -2375,16 +2547,16 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     justify-content: flex-start;
     text-align: left;
     align-self: stretch;
-    min-height: 2.35rem;
+    min-height: 3.5rem;
   }
 
   table.monitor td.percent-cell {
     grid-area: pct;
-    width: 3.2rem !important;
-    min-width: 3.2rem !important;
-    max-width: 3.2rem !important;
+    width: 4.8rem !important;
+    min-width: 4.8rem !important;
+    max-width: 4.8rem !important;
     height: auto;
-    min-height: 2.35rem;
+    min-height: 3.5rem;
     align-self: stretch;
     z-index: 2;
   }
@@ -2398,7 +2570,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
     right: auto;
     inset: auto;
     height: 100%;
-    min-height: 2.35rem;
+    min-height: 3.5rem;
     width: 100%;
     border: none;
     background: transparent;
@@ -2431,14 +2603,14 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .order-num__value {
-    font-size: 1.65rem;
+    font-size: 2.48rem;
     text-align: left;
     width: auto;
   }
 
   .order-num__own {
     text-align: left;
-    font-size: 0.825rem;
+    font-size: 1.24rem;
     max-width: none;
     color: var(--ll-navy);
   }
@@ -2453,11 +2625,11 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .order-num--mother .order-num__value {
-    font-size: 1.98rem;
+    font-size: 2.97rem;
   }
 
   .order-num--mother .order-num__own {
-    font-size: 0.99rem;
+    font-size: 1.49rem;
   }
 
   .order-num--child {
@@ -2475,31 +2647,31 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .order-num--child .order-num__value {
-    font-size: 1.575rem;
+    font-size: 2.36rem;
     width: auto;
   }
 
   .order-num--child .order-num__own {
-    font-size: 0.79rem;
+    font-size: 1.19rem;
     width: auto;
   }
 
   .order-num-cell .group-star svg {
-    width: 1.7rem;
-    height: 1.7rem;
+    width: 2.55rem;
+    height: 2.55rem;
   }
 
   .order-num--mother .order-num__icon {
-    min-width: 1.7rem;
+    min-width: 2.55rem;
   }
 
   .order-num-cell .group-child-line svg {
-    width: 0.65rem;
-    height: 0.65rem;
+    width: 0.98rem;
+    height: 0.98rem;
   }
 
   table.monitor .percent-bar__label {
-    font-size: clamp(0.71rem, 2.1vh, 1.01rem);
+    font-size: clamp(1.07rem, 3.15vh, 1.52rem);
     writing-mode: horizontal-tb;
     transform: none;
     letter-spacing: -0.02em;
@@ -2551,7 +2723,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   }
 
   .pb-card--mother {
-    width: 152px;
+    width: 213px;
   }
 
   .pb-card--child .pb-card__id {
