@@ -190,7 +190,7 @@ export default function App() {
   const [createChildProductions, setCreateChildProductions] = useState(false);
   const createChildProductionsRef = useRef(createChildProductions);
   createChildProductionsRef.current = createChildProductions;
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -728,7 +728,13 @@ export default function App() {
                 .join(' ')}
             >
               {error ? <div className="error">{error}</div> : null}
-              {!error && prodTest ? (
+              {!error && loading && orders.length === 0 ? (
+                <div className="page-loading" role="status" aria-live="polite">
+                  <span className="page-loading__spinner" aria-hidden />
+                  <span className="page-loading__text">{t('loadingOrders')}</span>
+                </div>
+              ) : null}
+              {!error && !(loading && orders.length === 0) && prodTest ? (
                 <ProductionTestView
                   groupIds={[...PRODUCTION_TEST_GROUP_IDS]}
                   orders={orders}
@@ -741,7 +747,7 @@ export default function App() {
                   onSelect={setSelectedId}
                 />
               ) : null}
-              {!error && !prodTest && view === 1 ? (
+              {!error && !(loading && orders.length === 0) && !prodTest && view === 1 ? (
                 <OrderList
                   orders={orders}
                   focusOrderId={focusOrderId}
@@ -751,10 +757,10 @@ export default function App() {
                   swapAnimToken={swapAnimToken}
                 />
               ) : null}
-              {!error && !prodTest && view === 2 ? (
+              {!error && !(loading && orders.length === 0) && !prodTest && view === 2 ? (
                 <OrdersTableView orders={orders} onSelect={setSelectedId} />
               ) : null}
-              {!error && !prodTest && view === 3 ? (
+              {!error && !(loading && orders.length === 0) && !prodTest && view === 3 ? (
                 <ProductionBoardView orders={orders} onSelect={openOrderInView1} />
               ) : null}
             </div>
