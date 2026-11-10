@@ -6,15 +6,16 @@
  *  Dla zmian w API (Netlify Functions) zrestartuj `npm run dev` / local-api.
  *
  *  Reguła % (Id >= MIN_PRODUCTION_ORDER_ID, State = na produkcji):
- *  - Zlecenie GRUPOWE (IsGroupOrder=1): sync aktualizuje ProductionPrc DZIECI
- *    z checklisty matki (QuantityStamp/Quantity). Matki nie nadpisujemy.
+ *  - Zlecenie GRUPOWE (IsGroupOrder=1): widok 1 syncuje ProductionPrc DZIECI
+ *    z checklisty matki (QuantityStamp/Quantity) — Odśwież + auto-refresh,
+ *    bez trybu DEV. Matki nie nadpisujemy.
  *  - Zlecenie POJEDYNCZE (np. 8727): NIE syncujemy — OptiCut sam ustawia
  *    Orders.ProductionPrc; monitor tylko odczytuje wartość przy Odśwież.
  * =============================================================================
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.1.4';
+export const APP_VERSION = 'V.1.5';
 
 /**
  * Auto-odświeżanie (adaptacyjne):

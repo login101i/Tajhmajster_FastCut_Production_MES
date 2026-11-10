@@ -373,11 +373,9 @@ export default function App() {
           if (tracked.lastGainAt != null) lastGainAtRef.current = tracked.lastGainAt;
           setOrders(rows);
         } else {
-          if (
-            writePrc &&
-            devModeRef.current &&
-            viewRef.current === 1
-          ) {
+          // Zapis % dzieci z checklisty matki — przy ręcznym Odśwież (nie auto-refresh).
+          // Bez tego matki mają ProductionPrc z OptiCut, a dzieci zostają na 0.00.
+          if (writePrc && viewRef.current === 1) {
             const preview = await fetchOrdersToSyncPrc({
               from: SYNC_PRODUCTIONS_FROM_DATE,
               minId: MIN_PRODUCTION_ORDER_ID,
@@ -507,8 +505,9 @@ export default function App() {
 
   useEffect(() => {
     if (!unlocked || selectedId != null) return;
-    // Initial / view change: no DB write of % (auto-refresh also read-only)
-    void load({ writePrc: false });
+    // Sync % dzieci zawsze (bez DEV) — start / zmiana widoku / auto-refresh
+    const shouldWritePrc = !prodTestRef.current && viewRef.current === 1;
+    void load({ writePrc: shouldWritePrc });
     if (prodTest || autoRefreshStopped) {
       setRefreshInSec(0);
       return;
@@ -528,7 +527,8 @@ export default function App() {
       }
       left -= 1;
       if (left <= 0) {
-        void load({ writePrc: false }).finally(() => {
+        const writePrc = !prodTestRef.current && viewRef.current === 1;
+        void load({ writePrc }).finally(() => {
           left = nextSec();
           setRefreshInSec(left);
         });
@@ -596,7 +596,7 @@ export default function App() {
             type="button"
             onClick={() =>
               void load({
-                writePrc: Boolean(devMode && !prodTest && view === 1),
+                writePrc: Boolean(!prodTest && view === 1),
               })
             }
             disabled={loading}
