@@ -15,7 +15,7 @@
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.1.6';
+export const APP_VERSION = 'V.1.8';
 
 /**
  * Auto-odświeżanie (adaptacyjne):
@@ -134,6 +134,8 @@ export const SYNC_PRC_BATCH_SIZE = 8;
 export const STORAGE_KEY_VIEW = 'tajhmajster_view';
 export const STORAGE_KEY_PROD_TEST = 'tajhmajster_prod_test';
 export const STORAGE_KEY_DEV_MODE = 'tajhmajster_dev_mode';
+/** Po logowaniu: potwierdzenie filtra State 4 (session). */
+export const STORAGE_KEY_FILTER_STATE4_ACK = 'tajhmajster_filter_state4_ack';
 
 /** Czy groupId ma dostawać rekordy Productions dla dzieci. */
 export function isChildProductionsGroup(groupId: number): boolean {

@@ -46,6 +46,14 @@ const messages = {
     stateAll: 'Wszystkie (grupy + produkcja)',
     refresh: 'Odśwież',
     refreshing: 'Odświeżam…',
+    filterState4Title: 'Ważna informacja',
+    filterState4Notice:
+      'Zlecenia poniżej: tylko wysłane na produkcję · State 4 Realizacja',
+    filterState4Hint:
+      'Monitor pokazuje wyłącznie zlecenia z Id ≥ 8700 w statusie Realizacja (State = 4).',
+    filterState4Checkbox: 'Rozumiem — pokazuj tylko State 4 Realizacja',
+    filterState4Confirm: 'Potwierdź i wejdź',
+    filterState4Header: 'Produkcja · State 4 (Realizacja)',
     refreshCountdown: 'odświeżenie za {s} s',
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',
@@ -130,6 +138,14 @@ const messages = {
     stateAll: 'All (groups + production)',
     refresh: 'Refresh',
     refreshing: 'Refreshing…',
+    filterState4Title: 'Important notice',
+    filterState4Notice:
+      'Orders below: only sent to production · State 4 Realization',
+    filterState4Hint:
+      'This monitor shows only orders with Id ≥ 8700 in Realization status (State = 4).',
+    filterState4Checkbox: 'I understand — show State 4 Realization only',
+    filterState4Confirm: 'Confirm and continue',
+    filterState4Header: 'Production · State 4 (Realization)',
     refreshCountdown: 'refresh in {s} s',
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',
@@ -214,6 +230,14 @@ const messages = {
     stateAll: 'Vsa (skupine + proizvodnja)',
     refresh: 'Osveži',
     refreshing: 'Osvežujem…',
+    filterState4Title: 'Pomembno obvestilo',
+    filterState4Notice:
+      'Naročila spodaj: samo poslana v proizvodnjo · State 4 Realizacija',
+    filterState4Hint:
+      'Monitor prikazuje samo naročila z Id ≥ 8700 v statusu Realizacija (State = 4).',
+    filterState4Checkbox: 'Razumem — prikaži samo State 4 Realizacija',
+    filterState4Confirm: 'Potrdi in nadaljuj',
+    filterState4Header: 'Proizvodnja · State 4 (Realizacija)',
     refreshCountdown: 'osvežitev čez {s} s',
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',

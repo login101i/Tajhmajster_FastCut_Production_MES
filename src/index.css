@@ -239,6 +239,13 @@ button {
     gap: 0.4rem;
   }
 
+  .topbar__drawer-actions .filter-state4-header {
+    max-width: 100%;
+    flex: 1 1 100%;
+    white-space: normal;
+    font-size: 0.9rem;
+  }
+
   .topbar__drawer-foot {
     display: flex;
     flex-wrap: wrap;
@@ -451,6 +458,95 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.filter-state4-header {
+  display: inline-block;
+  max-width: min(22rem, 36vw);
+  margin-left: 0.2rem;
+  color: #c62828;
+  font-size: clamp(0.85rem, 1.2vw, 1.05rem);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(20, 28, 40, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.filter-gate__dialog {
+  width: min(34rem, 100%);
+  padding: 1.75rem 1.6rem 1.5rem;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.filter-gate__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--ll-navy, #1e3a5f);
+}
+
+.filter-gate__text {
+  margin: 0;
+  color: #c62828;
+  font-size: clamp(1.05rem, 2.4vw, 1.35rem);
+  font-weight: 800;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.filter-gate__hint {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.filter-gate__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-gate__check input {
+  margin-top: 0.2rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: #8bc34a;
+  flex-shrink: 0;
+}
+
+.filter-gate__btn {
+  margin-top: 0.35rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.filter-gate__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .refresh-countdown {

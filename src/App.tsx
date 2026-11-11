@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { FilterState4Modal } from './components/FilterState4Modal';
 import { LoginGate } from './components/LoginGate';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { OrderDetail } from './components/OrderDetail';
@@ -43,6 +44,7 @@ import {
   PRODUCTION_TEST_GROUP_IDS,
   resolveAutoRefreshMs,
   STORAGE_KEY_DEV_MODE,
+  STORAGE_KEY_FILTER_STATE4_ACK,
   STORAGE_KEY_PROD_TEST,
   STORAGE_KEY_VIEW,
   SYNC_PRC_BATCH_SIZE,
@@ -177,6 +179,9 @@ export default function App() {
   const [unlocked, setUnlocked] = useState(() => {
     return Boolean(getStoredToken() || import.meta.env.VITE_MONITOR_TOKEN);
   });
+  const [filterState4Acked, setFilterState4Acked] = useState(
+    () => sessionStorage.getItem(STORAGE_KEY_FILTER_STATE4_ACK) === '1',
+  );
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [view, setView] = useState<AppView>(() => readView());
   const [devMode, setDevMode] = useState(
@@ -503,7 +508,7 @@ export default function App() {
   }, [t]);
 
   useEffect(() => {
-    if (!unlocked || selectedId != null) return;
+    if (!unlocked || !filterState4Acked || selectedId != null) return;
     // Sync % dzieci zawsze (bez DEV) — start / zmiana widoku / auto-refresh
     const shouldWritePrc = !prodTestRef.current && viewRef.current === 1;
     void load({ writePrc: shouldWritePrc });
@@ -537,10 +542,35 @@ export default function App() {
     }, 1000);
 
     return () => window.clearInterval(tick);
-  }, [unlocked, selectedId, load, prodTest, view, autoRefreshStopped]);
+  }, [
+    unlocked,
+    filterState4Acked,
+    selectedId,
+    load,
+    prodTest,
+    view,
+    autoRefreshStopped,
+  ]);
+
+  const ackFilterState4 = () => {
+    sessionStorage.setItem(STORAGE_KEY_FILTER_STATE4_ACK, '1');
+    setFilterState4Acked(true);
+  };
 
   if (needsGate && !unlocked) {
-    return <LoginGate onUnlock={() => setUnlocked(true)} />;
+    return (
+      <LoginGate
+        onUnlock={() => {
+          sessionStorage.removeItem(STORAGE_KEY_FILTER_STATE4_ACK);
+          setFilterState4Acked(false);
+          setUnlocked(true);
+        }}
+      />
+    );
+  }
+
+  if (unlocked && !filterState4Acked) {
+    return <FilterState4Modal onConfirm={ackFilterState4} />;
   }
 
   /* Ten sam pasek DEV w widoku 1 i 2 (board = view 3) */
@@ -629,6 +659,11 @@ export default function App() {
             </>
           ) : null}
         </span>
+        {!prodTest ? (
+          <span className="filter-state4-header" title={t('filterState4Notice')}>
+            {t('filterState4Header')}
+          </span>
+        ) : null}
         {showOrdersToSync ? (
           <button
             className="btn btn-ghost"
@@ -665,6 +700,8 @@ export default function App() {
         type="button"
         onClick={() => {
           clearStoredToken();
+          sessionStorage.removeItem(STORAGE_KEY_FILTER_STATE4_ACK);
+          setFilterState4Acked(false);
           setUnlocked(false);
         }}
       >
