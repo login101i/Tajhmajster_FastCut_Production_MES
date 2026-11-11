@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  CHILD_GAIN_SEGMENT_MS,
+  SCAN_FOCUS_FADE_MS,
+  SCAN_FOCUS_PULSE_MS,
+} from '../../config/project';
 import { useI18n } from '../i18n/LanguageContext';
 import { buildDisplayGroups, isRejected, orderIdLabel } from '../lib/orderDisplay';
 import {
+  FILL_GAIN,
   formatProductionPercentValue,
   parseProductionPercent,
   resolveFillColor,
@@ -14,21 +20,30 @@ import type { OrderRow } from '../types';
 import { GroupChildLine, GroupStar } from './GroupStar';
 import { PercentBar } from './PercentBar';
 
-/** Fokus z widoku 2: żółty puls 3 s, potem zanikanie 1 s. */
-const FOCUS_PULSE_MS = 3000;
-const FOCUS_FADE_MS = 1000;
-const FOCUS_HIGHLIGHT_MS = FOCUS_PULSE_MS + FOCUS_FADE_MS;
+/** Fokus z widoku 2 (nav): żółty puls 3 s, potem zanikanie 1 s. */
+const NAV_FOCUS_PULSE_MS = 3000;
+const NAV_FOCUS_FADE_MS = 1000;
+
+type GainSegment = { from: number; to: number };
 
 export function OrderList({
   orders,
   focusOrderId = null,
+  focusHighlightIds = [],
+  focusVariant = 'nav',
+  focusNonce = 0,
   onFocusHandled,
   animOrderId = null,
   animPlayToken = 0,
 }: {
   orders: OrderRow[];
-  /** Scroll this order (or its group mother) to the top of the list. */
+  /** Scroll target (primary order / suborder). */
   focusOrderId?: number | null;
+  /** All rows to flash (e.g. mother + child after scan). */
+  focusHighlightIds?: number[];
+  focusVariant?: 'nav' | 'scan';
+  /** Bumps to re-run scroll/flash when the same id gains again. */
+  focusNonce?: number;
   onFocusHandled?: () => void;
   /** DEV: force grow animation on this order id */
   animOrderId?: number | null;
@@ -37,14 +52,64 @@ export function OrderList({
   const { t } = useI18n();
   const gainTimes = trackProductionGains(orders).gainTimes;
   const [focusFading, setFocusFading] = useState(false);
+  /** Podzlecenia: odcinek przyrostu % (ciemniejszy) przez CHILD_GAIN_SEGMENT_MS. */
+  const [gainSegments, setGainSegments] = useState<Map<number, GainSegment>>(
+    () => new Map(),
+  );
+  const prevPctRef = useRef<Map<number, number>>(new Map());
   const focusRef = useRef<HTMLTableRowElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const onFocusHandledRef = useRef(onFocusHandled);
   onFocusHandledRef.current = onFocusHandled;
 
+  const highlightSet = useMemo(
+    () => new Set(focusHighlightIds),
+    [focusHighlightIds],
+  );
+
   const groups = useMemo(
     () => buildDisplayGroups(orders, gainTimes),
     [orders, gainTimes],
+  );
+
+  const gainTimersRef = useRef<number[]>([]);
+
+  /* Tylko podzlecenia: zapamiętaj przyrost old→new i pokaż ciemniejszy tip 2 s */
+  useEffect(() => {
+    for (const o of orders) {
+      const isChild =
+        (Number(o.IdParent) || 0) > 0 && Number(o.IsGroupOrder) !== 1;
+      const pct = parseProductionPercent(o.ProductionPrc) ?? 0;
+      const prev = prevPctRef.current.get(o.Id);
+
+      if (isChild && prev != null && pct > prev + 0.001) {
+        const id = o.Id;
+        const from = prev;
+        const to = pct;
+        setGainSegments((m) => {
+          const n = new Map(m);
+          n.set(id, { from, to });
+          return n;
+        });
+        const timer = window.setTimeout(() => {
+          setGainSegments((m) => {
+            const n = new Map(m);
+            n.delete(id);
+            return n;
+          });
+        }, CHILD_GAIN_SEGMENT_MS);
+        gainTimersRef.current.push(timer);
+      }
+      prevPctRef.current.set(o.Id, pct);
+    }
+  }, [orders]);
+
+  useEffect(
+    () => () => {
+      for (const t of gainTimersRef.current) window.clearTimeout(t);
+      gainTimersRef.current = [];
+    },
+    [],
   );
 
   useEffect(() => {
@@ -53,19 +118,23 @@ export function OrderList({
       return;
     }
     setFocusFading(false);
+    const pulseMs =
+      focusVariant === 'scan' ? SCAN_FOCUS_PULSE_MS : NAV_FOCUS_PULSE_MS;
+    const fadeMs =
+      focusVariant === 'scan' ? SCAN_FOCUS_FADE_MS : NAV_FOCUS_FADE_MS;
     const raf = window.requestAnimationFrame(() => {
       focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
-    const fade = window.setTimeout(() => setFocusFading(true), FOCUS_PULSE_MS);
+    const fade = window.setTimeout(() => setFocusFading(true), pulseMs);
     const clear = window.setTimeout(() => {
       onFocusHandledRef.current?.();
-    }, FOCUS_HIGHLIGHT_MS);
+    }, pulseMs + fadeMs);
     return () => {
       window.cancelAnimationFrame(raf);
       window.clearTimeout(fade);
       window.clearTimeout(clear);
     };
-  }, [focusOrderId]);
+  }, [focusOrderId, focusNonce, focusVariant]);
 
   /* Lewy przycisk myszy + przeciągnięcie = scroll pionowy (jak touch) */
   useEffect(() => {
@@ -143,7 +212,10 @@ export function OrderList({
                   isGroup || (row.depth === 0 && group.length > 1);
                 const pct = parseProductionPercent(row.ProductionPrc) ?? 0;
                 const pctLabel = `${formatProductionPercentValue(pct)}%`;
-                const isFocusRow = focusOrderId != null && row.Id === focusOrderId;
+                const isScrollTarget =
+                  focusOrderId != null && row.Id === focusOrderId;
+                const isFocusRow =
+                  isScrollTarget || highlightSet.has(row.Id);
                 const rejected = isRejected(row);
                 const fillColor = resolveFillColor(pct, { isGroup: isGroupMother });
                 const showShine =
@@ -151,17 +223,32 @@ export function OrderList({
                   pct > 0 &&
                   hasRecentProductionGain(row.Id, gainTimes);
                 const isChild = row.depth > 0;
+                const focusClass =
+                  isFocusRow && focusOrderId != null
+                    ? [
+                        focusVariant === 'scan'
+                          ? 'is-focus-order is-focus-order--scan'
+                          : 'is-focus-order',
+                        focusFading ? 'is-focus-order--fading' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')
+                    : '';
+                const pctPlay =
+                  (focusVariant === 'scan' && highlightSet.has(row.Id)) ||
+                  (animOrderId != null && row.Id === animOrderId)
+                    ? animPlayToken
+                    : 0;
+                const gainSeg = isChild ? gainSegments.get(row.Id) : undefined;
                 return (
                   <tr
                     key={row.Id}
-                    ref={isFocusRow ? focusRef : undefined}
+                    ref={isScrollTarget ? focusRef : undefined}
                     className={[
                       isChild ? 'is-child' : '',
                       isGroupMother ? 'is-group-mother' : '',
                       isGroupMother ? 'is-group-fill' : '',
-                      isFocusRow
-                        ? `is-focus-order${focusFading ? ' is-focus-order--fading' : ''}`
-                        : '',
+                      focusClass,
                       rejected ? 'is-rejected' : '',
                       pct >= 100 ? 'is-done' : '',
                     ]
@@ -169,11 +256,24 @@ export function OrderList({
                       .join(' ') || undefined}
                   >
                     {!rejected && pct > 0 ? (
-                      <span
-                        className={`monitor-row__fill${showShine ? ' shine' : ''}`}
-                        style={{ width: `${pct}%`, backgroundColor: fillColor }}
-                        aria-hidden
-                      />
+                      <>
+                        <span
+                          className={`monitor-row__fill${showShine ? ' shine' : ''}`}
+                          style={{ width: `${pct}%`, backgroundColor: fillColor }}
+                          aria-hidden
+                        />
+                        {gainSeg ? (
+                          <span
+                            className="monitor-row__fill monitor-row__fill--gain"
+                            style={{
+                              left: `${gainSeg.from}%`,
+                              width: `${Math.max(0, gainSeg.to - gainSeg.from)}%`,
+                              backgroundColor: FILL_GAIN,
+                            }}
+                            aria-hidden
+                          />
+                        ) : null}
+                      </>
                     ) : null}
                     <td className="order-num-cell">
                       <div
@@ -219,9 +319,14 @@ export function OrderList({
                         percent={row.ProductionPrc}
                         integerOnly
                         isGroup={isGroupMother}
-                        playToken={
-                          animOrderId != null && row.Id === animOrderId ? animPlayToken : 0
+                        playToken={pctPlay}
+                        emphasize={
+                          focusVariant === 'scan' &&
+                          highlightSet.has(row.Id) &&
+                          !focusFading
                         }
+                        gainFrom={gainSeg?.from}
+                        gainTo={gainSeg?.to}
                       />
                       <span className="sr-only">{pctLabel}</span>
                     </td>

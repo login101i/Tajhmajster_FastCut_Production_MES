@@ -15,31 +15,40 @@
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.2.0';
+export const APP_VERSION = 'V.2.1';
 
 /**
- * Auto-odświeżanie (adaptacyjne):
- * - domyślnie / po 5 min bez przyrostu % → AUTO_REFRESH_MS (3 min)
- * - po wykrytym przyroście ProductionPrc → AUTO_REFRESH_ACTIVE_MS (60 s)
- * - po 15 min bez przyrostu → AUTO_REFRESH_DEEP_IDLE_MS (8 min)
+ * Auto-odświeżanie (adaptacyjne wg skanów / przyrostu %):
+ * - częste skany (ostatni przyrost < HOT) → AUTO_REFRESH_HOT_MS (5 s)
+ * - nasłuch / świeża aktywność → AUTO_REFRESH_ACTIVE_MS (20 s)
+ * - kilka minut bez skanu → AUTO_REFRESH_MS (3 min)
+ * - długi bezruch → AUTO_REFRESH_DEEP_IDLE_MS (8 min)
  */
+/** Interwał przy częstym skanowaniu. */
+export const AUTO_REFRESH_HOT_MS = 5_000;
+/** Interwał nasłuchu / po skanie (domyślny „aktywny”). */
+export const AUTO_REFRESH_ACTIVE_MS = 20_000;
+/** Interwał po kilku minutach bez przyrostu %. */
 export const AUTO_REFRESH_MS = 3 * 60_000;
-/** Interwał zaraz po przyroście %. */
-export const AUTO_REFRESH_ACTIVE_MS = 60_000;
-/** Po tylu ms bez przyrostu wracamy z 60 s do 3 min. */
-export const AUTO_REFRESH_IDLE_TO_DEFAULT_MS = 5 * 60_000;
-/** Po tylu ms bez przyrostu przechodzimy na wolniejszy interwał. */
-export const AUTO_REFRESH_DEEP_IDLE_AFTER_MS = 15 * 60_000;
 /** Interwał przy długim braku przyrostu. */
 export const AUTO_REFRESH_DEEP_IDLE_MS = 8 * 60_000;
+
+/** Trzymaj 5 s, dopóki od ostatniego skanu minęło mniej niż tyle. */
+export const AUTO_REFRESH_HOT_FOR_MS = 60_000;
+/** Po tylu ms bez skanu zejdź z 20 s na 3 min. */
+export const AUTO_REFRESH_IDLE_TO_DEFAULT_MS = 3 * 60_000;
+/** Po tylu ms bez skanu zejdź na 8 min. */
+export const AUTO_REFRESH_DEEP_IDLE_AFTER_MS = 12 * 60_000;
 
 /** Wybierz interwał na podstawie czasu od ostatniego przyrostu %. */
 export function resolveAutoRefreshMs(
   lastGainAt: number | null,
   now = Date.now(),
 ): number {
-  if (lastGainAt == null) return AUTO_REFRESH_MS;
+  /* Brak skanu w sesji — i tak nasłuchuj co 20 s (pierwszy skan szybciej). */
+  if (lastGainAt == null) return AUTO_REFRESH_ACTIVE_MS;
   const idle = now - lastGainAt;
+  if (idle < AUTO_REFRESH_HOT_FOR_MS) return AUTO_REFRESH_HOT_MS;
   if (idle < AUTO_REFRESH_IDLE_TO_DEFAULT_MS) return AUTO_REFRESH_ACTIVE_MS;
   if (idle < AUTO_REFRESH_DEEP_IDLE_AFTER_MS) return AUTO_REFRESH_MS;
   return AUTO_REFRESH_DEEP_IDLE_MS;
@@ -52,6 +61,18 @@ export function resolveAutoRefreshMs(
 export const SHINE_RECENT_GAIN_MS = 10 * 60_000;
 /** Okres pętli shine (s) — jeden przebłysk co 10 s. */
 export const SHINE_PERIOD_S = 10;
+
+/**
+ * Po wykryciu przyrostu % (skan formatki): zielony flash wiersza + scroll.
+ * Puls trwa SCAN_FOCUS_PULSE_MS, potem zanikanie SCAN_FOCUS_FADE_MS.
+ */
+export const SCAN_FOCUS_PULSE_MS = 3_000;
+export const SCAN_FOCUS_FADE_MS = 1_000;
+
+/**
+ * Podzlecenie: przyrost % na pasku (odcinek old→new) ciemniejszym kolorem.
+ */
+export const CHILD_GAIN_SEGMENT_MS = 2_000;
 
 /** Ukryj header po braku ruchu: telefon (ms). */
 export const HEADER_HIDE_MS_PHONE = 3 * 60_000;

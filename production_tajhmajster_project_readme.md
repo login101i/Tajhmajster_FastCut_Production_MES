@@ -17,10 +17,11 @@ Po każdym fetchu lista jest porównywana ze snapshotem `ProductionPrc` (session
 
 | Stan (czas od ostatniego przyrostu %) | Interwał | Stała |
 |---------------------------------------|----------|--------|
-| Brak przyrostu w sesji (domyślnie) | **3 min** | `AUTO_REFRESH_MS` |
-| Przyrost w ostatnich **5 min** | **60 s** | `AUTO_REFRESH_ACTIVE_MS` |
-| 5–15 min bez przyrostu | z powrotem **3 min** | `AUTO_REFRESH_MS` |
-| **≥ 15 min** bez przyrostu | **8 min** | `AUTO_REFRESH_DEEP_IDLE_MS` |
+| Brak skanu w sesji / świeża aktywność | **20 s** | `AUTO_REFRESH_ACTIVE_MS` |
+| Ostatni skan **&lt; 60 s** (częste skany) | **5 s** | `AUTO_REFRESH_HOT_MS` |
+| 1–3 min bez skanu | **20 s** | `AUTO_REFRESH_ACTIVE_MS` |
+| **3–12 min** bez skanu | **3 min** | `AUTO_REFRESH_MS` |
+| **≥ 12 min** bez skanu | **8 min** | `AUTO_REFRESH_DEEP_IDLE_MS` |
 
 Logika wyboru: `resolveAutoRefreshMs(lastGainAt)` w `config/project.ts`.  
 Auto-refresh działa tylko w godzinach `AUTO_REFRESH_HOUR_FROM`…`AUTO_REFRESH_HOUR_TO` (domyślnie 6–18).  
@@ -42,7 +43,8 @@ Helper: `hasRecentProductionGain(orderId, gainTimes)` — klasa `shine` dokłada
 - **Widok 1 grupy:** podzlecenia sortowane stałe **Id DESC** (bez animacji przetasowań po %).
 - **Progress w wierszu:** prawa krawędź pod kątem **~8°** + fade/blur (`--progress-slant` w CSS).
 - **Header:** chowa się płynnie w **0.5 s** (`.topbar-wrap`).
-- **Widok 2 → Widok 1:** klik kafelka scrolluje wiersz na środek + niebieskie obramowanie ~1 s.
+- **Widok 2 → Widok 1:** klik kafelka scrolluje wiersz na środek + żółty fokus ~3 s.
+- **Po skanie (przyrost %):** auto widok 1, scroll do zlecenia/podzlecenia, **zielony flash 3 s**, animacja paska %.
 
 ---
 

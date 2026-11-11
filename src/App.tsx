@@ -54,7 +54,9 @@ import {
 } from '../config/project';
 import {
   getLastProductionGainAt,
+  resolveScanFocusTargets,
   trackProductionGains,
+  type GainTrackResult,
 } from './lib/recentGains';
 
 export { MIN_PRODUCTION_ORDER_ID, PRODUCTION_TEST_GROUP_IDS };
@@ -207,6 +209,12 @@ export default function App() {
   const [syncPreviewLoading, setSyncPreviewLoading] = useState(false);
   const [syncPreviewGroups, setSyncPreviewGroups] = useState<OrdersToSyncGroup[]>([]);
   const [focusOrderId, setFocusOrderId] = useState<number | null>(null);
+  /** Dodatkowe wiersze flash (np. matka + dziecko po skanie). */
+  const [focusHighlightIds, setFocusHighlightIds] = useState<number[]>([]);
+  /** nav = klik z widoku 2 (żółty); scan = przyrost % (zielony). */
+  const [focusVariant, setFocusVariant] = useState<'nav' | 'scan'>('nav');
+  /** Ponów animację fokus nawet dla tego samego Id. */
+  const [focusNonce, setFocusNonce] = useState(0);
   const [refreshInSec, setRefreshInSec] = useState(() =>
     Math.ceil(resolveAutoRefreshMs(getLastProductionGainAt()) / 1000),
   );
@@ -340,13 +348,45 @@ export default function App() {
     setSelectedId(null);
     setView(1);
     sessionStorage.setItem(STORAGE_KEY_VIEW, '1');
+    setFocusVariant('nav');
+    setFocusHighlightIds([orderId]);
     setFocusOrderId(orderId);
+    setFocusNonce((n) => n + 1);
   };
 
   const clearFocusOrder = () => {
     setFocusOrderId(null);
+    setFocusHighlightIds([]);
+    setFocusVariant('nav');
     focusNavLockRef.current = false;
   };
+
+  /** Po wykryciu przyrostu % (skan) — widok 1, scroll, zielony flash 3 s. */
+  const applyScanFocusFromGains = useCallback(
+    (rows: OrderRow[], tracked: GainTrackResult) => {
+      if (tracked.lastGainAt != null) lastGainAtRef.current = tracked.lastGainAt;
+      if (!tracked.hadFreshGain || tracked.freshGainIds.length === 0) return;
+      if (prodTestRef.current) return;
+
+      const { primaryId, highlightIds } = resolveScanFocusTargets(
+        rows,
+        tracked.freshGainIds,
+      );
+      if (!primaryId) return;
+
+      focusNavLockRef.current = true;
+      setHeaderHidden(false);
+      setSelectedId(null);
+      setView(1);
+      sessionStorage.setItem(STORAGE_KEY_VIEW, '1');
+      setFocusVariant('scan');
+      setFocusHighlightIds(highlightIds);
+      setFocusOrderId(primaryId);
+      setFocusNonce((n) => n + 1);
+      setAnimPlayToken((n) => n + 1);
+    },
+    [],
+  );
 
   const toggleDevMode = () => {
     setDevMode((prev) => {
@@ -409,12 +449,13 @@ export default function App() {
           }
           const rows = [...byId.values()];
           const tracked = trackProductionGains(rows);
-          if (tracked.lastGainAt != null) lastGainAtRef.current = tracked.lastGainAt;
+          applyScanFocusFromGains(rows, tracked);
           setOrders(rows);
         } else {
-          // Zapis % dzieci z checklisty matki — przy ręcznym Odśwież (nie auto-refresh).
+          // Zapis % dzieci z checklisty matki — przy ręcznym Odśwież / auto-refresh.
           // Bez tego matki mają ProductionPrc z OptiCut, a dzieci zostają na 0.00.
-          if (writePrc && viewRef.current === 1) {
+          // Sync dzieci także w widoku board — żeby skan był widoczny od razu
+          if (writePrc && (viewRef.current === 1 || viewRef.current === 3)) {
             const preview = await fetchOrdersToSyncPrc({
               from: SYNC_PRODUCTIONS_FROM_DATE,
               minId: MIN_PRODUCTION_ORDER_ID,
@@ -435,7 +476,7 @@ export default function App() {
           });
           const rows = res.orders || [];
           const tracked = trackProductionGains(rows);
-          if (tracked.lastGainAt != null) lastGainAtRef.current = tracked.lastGainAt;
+          applyScanFocusFromGains(rows, tracked);
           setOrders(rows);
           setSyncByGroup({});
         }
@@ -451,7 +492,7 @@ export default function App() {
         setLoading(false);
       }
     },
-    [t],
+    [t, applyScanFocusFromGains],
   );
 
   const openSyncPreview = useCallback(async () => {
@@ -490,7 +531,7 @@ export default function App() {
         });
         const rows = res.orders || [];
         const tracked = trackProductionGains(rows);
-        if (tracked.lastGainAt != null) lastGainAtRef.current = tracked.lastGainAt;
+        applyScanFocusFromGains(rows, tracked);
         setOrders(rows);
         setUpdatedAt(new Date());
       } catch (err) {
@@ -499,7 +540,7 @@ export default function App() {
         throw err;
       }
     },
-    [t],
+    [t, applyScanFocusFromGains],
   );
 
   const updateChildrenPrc = useCallback(async () => {
@@ -531,7 +572,7 @@ export default function App() {
       }
       const rows = [...byId.values()];
       const tracked = trackProductionGains(rows);
-      if (tracked.lastGainAt != null) lastGainAtRef.current = tracked.lastGainAt;
+      applyScanFocusFromGains(rows, tracked);
       setOrders(rows);
       setUpdatedAt(new Date());
     } catch (err) {
@@ -540,12 +581,14 @@ export default function App() {
     } finally {
       setSyncing(false);
     }
-  }, [t]);
+  }, [t, applyScanFocusFromGains]);
 
   // Prefetch od razu po logowaniu (także gdy popup State 4 jest otwarty)
   useEffect(() => {
     if (!unlocked || selectedId != null) return;
-    const shouldWritePrc = !prodTestRef.current && viewRef.current === 1;
+    const v = viewRef.current;
+    const shouldWritePrc =
+      !prodTestRef.current && (v === 1 || v === 3);
     void load({ writePrc: shouldWritePrc });
   }, [unlocked, selectedId, load, prodTest, view]);
 
@@ -576,7 +619,9 @@ export default function App() {
       }
       left -= 1;
       if (left <= 0) {
-        const writePrc = !prodTestRef.current && viewRef.current === 1;
+        const v = viewRef.current;
+        const writePrc =
+          !prodTestRef.current && (v === 1 || v === 3);
         void load({ writePrc }).finally(() => {
           left = nextSec();
           setRefreshInSec(left);
@@ -670,7 +715,7 @@ export default function App() {
             type="button"
             onClick={() =>
               void load({
-                writePrc: Boolean(!prodTest && view === 1),
+                writePrc: Boolean(!prodTest && (view === 1 || view === 3)),
               })
             }
             disabled={loading}
@@ -693,7 +738,7 @@ export default function App() {
               <span
                 className="refresh-countdown"
                 aria-live="polite"
-                title={`Auto-refresh ${AUTO_REFRESH_HOUR_FROM}:00–${AUTO_REFRESH_HOUR_TO}:00 · 60s / 3min / 8min wg przyrostu %`}
+                title={`Auto-refresh ${AUTO_REFRESH_HOUR_FROM}:00–${AUTO_REFRESH_HOUR_TO}:00 · 5s / 20s / 3min / 8min wg skanów %`}
               >
                 {autoRefreshStopped || refreshInSec <= 0
                   ? '—'
@@ -821,6 +866,9 @@ export default function App() {
                 <OrderList
                   orders={orders}
                   focusOrderId={focusOrderId}
+                  focusHighlightIds={focusHighlightIds}
+                  focusVariant={focusVariant}
+                  focusNonce={focusNonce}
                   onFocusHandled={clearFocusOrder}
                   animOrderId={ANIM_DEMO_ORDER_ID}
                   animPlayToken={animPlayToken}

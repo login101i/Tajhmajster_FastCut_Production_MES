@@ -12,9 +12,36 @@ export type GainTrackResult = {
   gainTimes: Map<number, number>;
   /** Czy w tym przebiegu wykryto świeży przyrost %. */
   hadFreshGain: boolean;
+  /** Id zleceń z przyrostem % w tym przebiegu (kolejność jak na liście). */
+  freshGainIds: number[];
   /** Najnowszy znany przyrost (ms) albo null. */
   lastGainAt: number | null;
 };
+
+/**
+ * Wybierz cel scroll/flash po skanie: preferuj podzlecenie, dołącz matkę grupy.
+ */
+export function resolveScanFocusTargets(
+  orders: OrderRow[],
+  freshGainIds: number[],
+): { primaryId: number; highlightIds: number[] } {
+  if (freshGainIds.length === 0) {
+    return { primaryId: 0, highlightIds: [] };
+  }
+  const byId = new Map(orders.map((o) => [o.Id, o]));
+  const childGains = freshGainIds.filter((id) => {
+    const o = byId.get(id);
+    return o != null && (Number(o.IdParent) || 0) > 0;
+  });
+  const primaryId = childGains[0] ?? freshGainIds[0];
+  const highlight = new Set<number>(freshGainIds);
+  const primary = byId.get(primaryId);
+  if (primary) {
+    const parent = Number(primary.IdParent) || 0;
+    if (parent > 0) highlight.add(parent);
+  }
+  return { primaryId, highlightIds: [...highlight] };
+}
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -55,6 +82,7 @@ export function trackProductionGains(orders: OrderRow[]): GainTrackResult {
   const nextSnap: Record<string, number> = {};
   const now = Date.now();
   let hadFreshGain = false;
+  const freshGainIds: number[] = [];
 
   for (const o of orders) {
     const id = String(o.Id);
@@ -63,6 +91,7 @@ export function trackProductionGains(orders: OrderRow[]): GainTrackResult {
     if (prev[id] != null && pct > prev[id] + 0.001) {
       gains[id] = now;
       hadFreshGain = true;
+      freshGainIds.push(o.Id);
     }
   }
 
@@ -93,7 +122,7 @@ export function trackProductionGains(orders: OrderRow[]): GainTrackResult {
     const n = Number(id);
     if (Number.isFinite(n)) out.set(n, ts);
   }
-  return { gainTimes: out, hadFreshGain, lastGainAt };
+  return { gainTimes: out, hadFreshGain, freshGainIds, lastGainAt };
 }
 
 export function activityTimestamp(

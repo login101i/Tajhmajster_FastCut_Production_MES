@@ -6,6 +6,8 @@ export const FILL_HIGH = '#64b5f6';
 export const FILL_DONE = '#1565c0';
 /** Matka zlecenia grupowego — wyraźny niebieski (dzieci: jasny). */
 export const FILL_GROUP = '#1976d2';
+/** Przyrost % na podzleceniu (odcinek old→new, ~2 s). */
+export const FILL_GAIN = '#0d47a1';
 
 export function parseProductionPercent(value: number | string | null | undefined): number | null {
   if (value == null || value === '') return null;
