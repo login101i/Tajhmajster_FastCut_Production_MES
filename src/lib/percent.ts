@@ -22,6 +22,18 @@ export function formatProductionPercentValue(value: number | string | null | und
   return parsed.toFixed(2);
 }
 
+/**
+ * Całkowity % do UI — bez zaokrąglania w górę (32.9 → 32, nie 33).
+ * Pasek nadal używa dokładnej wartości z ProductionPrc.
+ */
+export function formatProductionPercentInteger(
+  value: number | string | null | undefined,
+): string {
+  const parsed = parseProductionPercent(value);
+  if (parsed == null) return '0';
+  return String(Math.floor(parsed + 1e-9));
+}
+
 export function resolveFillColor(
   percent: number,
   opts?: { isGroup?: boolean },

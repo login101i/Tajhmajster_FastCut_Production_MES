@@ -117,7 +117,7 @@ export function OrderDetail({
                 {Number(g.IsGroupOrder) === 1
                   ? g.Id
                   : `${g.Id} / ${Number(g.IdParent) || order.Id}`}{' '}
-                · {g.ProductionPrc != null ? `${Number(g.ProductionPrc).toFixed(0)}%` : '—'}
+                · {g.ProductionPrc != null ? `${Math.floor(Number(g.ProductionPrc) + 1e-9)}%` : '—'}
               </span>
             </button>
           ))}

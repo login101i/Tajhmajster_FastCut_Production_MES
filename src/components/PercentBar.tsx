@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   FILL_GAIN,
+  formatProductionPercentInteger,
   formatProductionPercentValue,
   parseProductionPercent,
   resolveFillColor,
@@ -71,7 +72,9 @@ export function PercentBar({
   }
 
   const precise = formatProductionPercentValue(parsed);
-  const pctText = integerOnly ? `${Math.round(parsed)}%` : `${precise}%`;
+  const pctText = integerOnly
+    ? `${formatProductionPercentInteger(parsed)}%`
+    : `${precise}%`;
   const title = suffix ? `${pctText} · ${suffix}` : pctText;
   const label = suffix ? `${pctText}  ${suffix}` : pctText;
   const fill = resolveFillColor(parsed, { isGroup });

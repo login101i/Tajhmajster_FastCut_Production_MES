@@ -117,5 +117,6 @@ function formatPrc(value: string | number | null | undefined): string {
   if (value == null || value === '') return '—';
   const n = Number(value);
   if (!Number.isFinite(n)) return String(value);
-  return `${Math.round(n)}%`;
+  /* Bez zaokrąglania w górę — jak na monitorze. */
+  return `${Math.floor(n + 1e-9)}%`;
 }

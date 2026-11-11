@@ -258,11 +258,20 @@ export function OrderList({
                     {!rejected && pct > 0 ? (
                       <>
                         <span
-                          className={`monitor-row__fill${showShine ? ' shine' : ''}`}
-                          style={{ width: `${pct}%`, backgroundColor: fillColor }}
+                          className={[
+                            'monitor-row__fill',
+                            showShine ? 'shine' : '',
+                            pct >= 100 ? 'monitor-row__fill--done' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          style={{
+                            width: pct >= 100 ? '100%' : `${pct}%`,
+                            backgroundColor: fillColor,
+                          }}
                           aria-hidden
                         />
-                        {gainSeg ? (
+                        {gainSeg && pct < 100 ? (
                           <span
                             className="monitor-row__fill monitor-row__fill--gain"
                             style={{

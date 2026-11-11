@@ -77,6 +77,8 @@ function OrderCard({
     prevRef.current = pct;
   }, [pct]);
 
+  const done = !rejected && pct >= 100;
+
   return (
     <button
       type="button"
@@ -87,15 +89,19 @@ function OrderCard({
         pickup ? 'pb-card--pickup' : '',
         growing ? 'pb-card--grow' : '',
         rejected ? 'pb-card--rejected' : '',
+        done ? 'pb-card--done' : '',
       ]
         .filter(Boolean)
         .join(' ')}
       onClick={() => onSelect(order.Id)}
-      title={[order.Id, order.OwnNumber, `${pct.toFixed(0)}%`].filter(Boolean).join(' · ')}
+      title={[order.Id, order.OwnNumber, `${Math.floor(pct + 1e-9)}%`].filter(Boolean).join(' · ')}
     >
       <span
-        className={`pb-card__fill${showShine ? ' shine' : ''}`}
-        style={{ width: `${displayWidth}%`, backgroundColor: fillColor }}
+        className={`pb-card__fill${showShine ? ' shine' : ''}${done ? ' pb-card__fill--done' : ''}`}
+        style={{
+          width: done ? '100%' : `${displayWidth}%`,
+          backgroundColor: fillColor,
+        }}
         aria-hidden
       />
       <span className="pb-card__body">
@@ -111,7 +117,7 @@ function OrderCard({
           <GroupOrderIcon compact={role === 'child'} />
         ) : null}
         {!pickup && role !== 'mother' ? (
-          <span className="pb-card__pct">{pct.toFixed(0)}%</span>
+          <span className="pb-card__pct">{Math.floor(pct + 1e-9)}%</span>
         ) : null}
       </span>
     </button>

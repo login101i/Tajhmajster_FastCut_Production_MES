@@ -567,6 +567,33 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+.last-change-dev {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ll-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.last-change-dev--ok {
+  color: #1565c0;
+}
+
+.last-change-dev--hit {
+  color: #1b5e20;
+  background: rgba(76, 175, 80, 0.18);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+}
+
+.last-change-dev--warn {
+  color: #b71c1c;
+}
+
 .stop-refresh-btn--stopped {
   border-color: #c45c5c;
   color: #a33;
@@ -941,9 +968,9 @@ table.monitor tbody tr.is-focus-order {
   animation: focus-yellow-pulse 0.7s ease-in-out infinite;
 }
 
-/* Po skanie / przyroście % — zielony flash 3 s */
+/* Po skanie / przyroście % — niebieski flash 3 s */
 table.monitor tbody tr.is-focus-order--scan {
-  animation: focus-green-pulse 0.7s ease-in-out infinite;
+  animation: focus-blue-pulse 0.7s ease-in-out infinite;
 }
 
 table.monitor tbody tr.is-focus-order--fading {
@@ -951,7 +978,7 @@ table.monitor tbody tr.is-focus-order--fading {
 }
 
 table.monitor tbody tr.is-focus-order--scan.is-focus-order--fading {
-  animation: focus-green-fade-out 1s ease-out forwards;
+  animation: focus-blue-fade-out 1s ease-out forwards;
 }
 
 @keyframes focus-yellow-pulse {
@@ -973,22 +1000,22 @@ table.monitor tbody tr.is-focus-order--scan.is-focus-order--fading {
   }
 }
 
-@keyframes focus-green-pulse {
+@keyframes focus-blue-pulse {
   0%,
   100% {
-    box-shadow: inset 0 0 0 3px #43a047, 0 0 0 2px rgba(67, 160, 71, 0.4);
-    background-color: rgba(200, 230, 201, 0.55);
+    box-shadow: inset 0 0 0 3px #1e88e5, 0 0 0 2px rgba(30, 136, 229, 0.4);
+    background-color: rgba(187, 222, 251, 0.55);
   }
   50% {
-    box-shadow: inset 0 0 0 4px #66bb6a, 0 0 0 5px rgba(102, 187, 106, 0.55);
-    background-color: rgba(165, 214, 167, 0.75);
+    box-shadow: inset 0 0 0 4px #42a5f5, 0 0 0 5px rgba(66, 165, 245, 0.55);
+    background-color: rgba(144, 202, 249, 0.75);
   }
 }
 
-@keyframes focus-green-fade-out {
+@keyframes focus-blue-fade-out {
   0% {
-    box-shadow: inset 0 0 0 3px #43a047, 0 0 0 2px rgba(67, 160, 71, 0.4);
-    background-color: rgba(200, 230, 201, 0.45);
+    box-shadow: inset 0 0 0 3px #1e88e5, 0 0 0 2px rgba(30, 136, 229, 0.4);
+    background-color: rgba(187, 222, 251, 0.45);
   }
   100% {
     box-shadow: inset 0 0 0 3px transparent, 0 0 0 2px transparent;
@@ -997,14 +1024,14 @@ table.monitor tbody tr.is-focus-order--scan.is-focus-order--fading {
 }
 
 .percent-bar--emphasize .percent-bar__label {
-  color: #1b5e20;
+  color: #0d47a1;
   font-weight: 900;
-  text-shadow: 0 0 8px rgba(129, 199, 132, 0.9);
+  text-shadow: 0 0 8px rgba(100, 181, 246, 0.9);
   transform: scale(1.12);
 }
 
 .percent-bar--emphasize {
-  outline: 2px solid #43a047;
+  outline: 2px solid #1e88e5;
   outline-offset: 1px;
   border-radius: 4px;
 }
@@ -1458,6 +1485,35 @@ table.monitor tbody tr.is-group-mother .percent-bar__label {
 
 .monitor-row__fill.shine {
   overflow: visible;
+}
+
+/* 100% — pełna szerokość, bez skosu / fade / blur (wyglądało jak ~99%) */
+.monitor-row__fill--done {
+  --progress-slant: 0;
+  inset: 0;
+  width: 100% !important;
+  clip-path: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.monitor-row__fill--done::after {
+  display: none;
+}
+
+/* 100% — biały Id / OwnNumber / % na ciemnoniebieskim tle */
+table.monitor tbody tr.is-done .order-num__value,
+table.monitor tbody tr.is-done .order-num__own,
+table.monitor tbody tr.is-done .order-desc,
+table.monitor tbody tr.is-done .percent-bar__label {
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important;
+}
+
+table.monitor tbody tr.is-done .group-star,
+table.monitor tbody tr.is-done .group-child-line {
+  color: #fff;
+  filter: brightness(0) invert(1);
 }
 
 /* Podzlecenie: ciemniejszy odcinek przyrostu % (np. 23→24) na ~2 s */
@@ -2415,6 +2471,18 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 .pb-card--rejected .pb-card__id,
 .pb-card--rejected .pb-card__pct {
   color: #fff !important;
+}
+
+.pb-card__fill--done {
+  inset: 0;
+  width: 100% !important;
+}
+
+.pb-card--done .pb-card__id,
+.pb-card--done .pb-card__own,
+.pb-card--done .pb-card__pct {
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 .pb-card__body {

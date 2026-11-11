@@ -126,6 +126,37 @@ export function fetchOrdersToSyncPrc(opts: { from?: string; minId?: number } = {
   return apiGet<OrdersToSyncPrcResponse>(`/api/orders-to-sync-prc${q ? `?${q}` : ''}`);
 }
 
+export type ProductionLastChangeGroup = {
+  groupId: number;
+  stampSum: number;
+  qtySum: number;
+};
+
+export type ProductionLastChangeResponse = {
+  success: boolean;
+  minId: number;
+  /** Fingerprint — zmiana = skan / DateMod. */
+  version: string;
+  stampSum: number;
+  qtySum: number;
+  checklistRows: number;
+  ordersModUnix: number;
+  /** Per-matka fingerprint checklisty — sync tylko zmienionych. */
+  groups: ProductionLastChangeGroup[];
+  checkedAt: string;
+  error?: string;
+};
+
+/** Lekki fingerprint checklisty (QuantityStamp) + Orders.DateMod. */
+export function fetchProductionLastChange(opts: { minId?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (opts.minId) qs.set('minId', String(opts.minId));
+  const q = qs.toString();
+  return apiGet<ProductionLastChangeResponse>(
+    `/api/production-last-change${q ? `?${q}` : ''}`,
+  );
+}
+
 /** Run sync for many groups in small batches to avoid flooding the API. */
 export async function syncGroupChildrenPrcBatch(
   groupIds: number[],

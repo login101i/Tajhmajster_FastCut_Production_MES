@@ -50,6 +50,8 @@ const ROUTE_MAP = {
   '/.netlify/functions/sync-group-children-prc': 'sync-group-children-prc',
   '/api/orders-to-sync-prc': 'orders-to-sync-prc',
   '/.netlify/functions/orders-to-sync-prc': 'orders-to-sync-prc',
+  '/api/production-last-change': 'production-last-change',
+  '/.netlify/functions/production-last-change': 'production-last-change',
 };
 
 const handlerCache = new Map();

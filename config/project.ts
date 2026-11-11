@@ -18,38 +18,35 @@
 export const APP_VERSION = 'V.2.1';
 
 /**
- * Auto-odświeżanie (adaptacyjne wg skanów / przyrostu %):
- * - częste skany (ostatni przyrost < HOT) → AUTO_REFRESH_HOT_MS (5 s)
- * - nasłuch / świeża aktywność → AUTO_REFRESH_ACTIVE_MS (20 s)
- * - kilka minut bez skanu → AUTO_REFRESH_MS (3 min)
- * - długi bezruch → AUTO_REFRESH_DEEP_IDLE_MS (8 min)
+ * Szybki sygnał skanu (Netlify + MySQL):
+ * lekki GET /api/production-last-change co LAST_CHANGE_POLL_MS.
+ * Pełny sync tylko gdy `version` się zmieni.
+ *
+ * Backup pełnego odświeżenia (gdy last-change nic nie złapie):
+ * adaptacyjnie 3–8 min wg ostatniego przyrostu %.
  */
-/** Interwał przy częstym skanowaniu. */
-export const AUTO_REFRESH_HOT_MS = 5_000;
-/** Interwał nasłuchu / po skanie (domyślny „aktywny”). */
-export const AUTO_REFRESH_ACTIVE_MS = 20_000;
-/** Interwał po kilku minutach bez przyrostu %. */
+/** Poll fingerprint checklisty / DateMod (ms). */
+export const LAST_CHANGE_POLL_MS = 1_500;
+/** Backup pełnego odświeżenia gdy jest aktywność %. */
 export const AUTO_REFRESH_MS = 3 * 60_000;
-/** Interwał przy długim braku przyrostu. */
+/** Backup przy długim bezruchu. */
 export const AUTO_REFRESH_DEEP_IDLE_MS = 8 * 60_000;
-
-/** Trzymaj 5 s, dopóki od ostatniego skanu minęło mniej niż tyle. */
-export const AUTO_REFRESH_HOT_FOR_MS = 60_000;
-/** Po tylu ms bez skanu zejdź z 20 s na 3 min. */
-export const AUTO_REFRESH_IDLE_TO_DEFAULT_MS = 3 * 60_000;
-/** Po tylu ms bez skanu zejdź na 8 min. */
+/** Po tylu ms bez przyrostu % → deep idle backup. */
 export const AUTO_REFRESH_DEEP_IDLE_AFTER_MS = 12 * 60_000;
 
-/** Wybierz interwał na podstawie czasu od ostatniego przyrostu %. */
+/** Alias historyczny — countdown / stare UI. */
+export const AUTO_REFRESH_ACTIVE_MS = LAST_CHANGE_POLL_MS;
+export const AUTO_REFRESH_HOT_MS = LAST_CHANGE_POLL_MS;
+export const AUTO_REFRESH_HOT_FOR_MS = 60_000;
+export const AUTO_REFRESH_IDLE_TO_DEFAULT_MS = AUTO_REFRESH_DEEP_IDLE_AFTER_MS;
+
+/** Backup full-refresh interval (last-change handles near-instant scans). */
 export function resolveAutoRefreshMs(
   lastGainAt: number | null,
   now = Date.now(),
 ): number {
-  /* Brak skanu w sesji — i tak nasłuchuj co 20 s (pierwszy skan szybciej). */
-  if (lastGainAt == null) return AUTO_REFRESH_ACTIVE_MS;
+  if (lastGainAt == null) return AUTO_REFRESH_MS;
   const idle = now - lastGainAt;
-  if (idle < AUTO_REFRESH_HOT_FOR_MS) return AUTO_REFRESH_HOT_MS;
-  if (idle < AUTO_REFRESH_IDLE_TO_DEFAULT_MS) return AUTO_REFRESH_ACTIVE_MS;
   if (idle < AUTO_REFRESH_DEEP_IDLE_AFTER_MS) return AUTO_REFRESH_MS;
   return AUTO_REFRESH_DEEP_IDLE_MS;
 }
@@ -63,8 +60,8 @@ export const SHINE_RECENT_GAIN_MS = 10 * 60_000;
 export const SHINE_PERIOD_S = 10;
 
 /**
- * Po wykryciu przyrostu % (skan formatki): zielony flash wiersza + scroll.
- * Puls trwa SCAN_FOCUS_PULSE_MS, potem zanikanie SCAN_FOCUS_FADE_MS.
+ * Po wykryciu przyrostu % (skan formatki): niebieski flash wiersza + scroll.
+ * Puls trwa SCAN_FOCUS_PULSE_MS (3 s), potem zanikanie SCAN_FOCUS_FADE_MS.
  */
 export const SCAN_FOCUS_PULSE_MS = 3_000;
 export const SCAN_FOCUS_FADE_MS = 1_000;

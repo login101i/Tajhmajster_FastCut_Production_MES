@@ -15,17 +15,13 @@ Konfiguracja: `config/project.ts`. Detekcja przyrostów %: `src/lib/recentGains.
 
 Po każdym fetchu lista jest porównywana ze snapshotem `ProductionPrc` (sessionStorage). Gdy **gdziekolwiek** % wzrośnie, zapisywany jest timestamp ostatniego przyrostu (`lastGainAt`).
 
-| Stan (czas od ostatniego przyrostu %) | Interwał | Stała |
-|---------------------------------------|----------|--------|
-| Brak skanu w sesji / świeża aktywność | **20 s** | `AUTO_REFRESH_ACTIVE_MS` |
-| Ostatni skan **&lt; 60 s** (częste skany) | **5 s** | `AUTO_REFRESH_HOT_MS` |
-| 1–3 min bez skanu | **20 s** | `AUTO_REFRESH_ACTIVE_MS` |
-| **3–12 min** bez skanu | **3 min** | `AUTO_REFRESH_MS` |
-| **≥ 12 min** bez skanu | **8 min** | `AUTO_REFRESH_DEEP_IDLE_MS` |
+| Mechanizm | Interwał | Stała / endpoint |
+|-----------|----------|------------------|
+| **Last-change poll** (fingerprint per grupa) | **1.5 s** | `LAST_CHANGE_POLL_MS` → `GET /api/production-last-change` |
+| Sync **tylko zmienionych** matek + fetch listy | na zmianę | `onlyGroupIds` (nie sync całej listy) |
+| Backup full refresh (wszystkie grupy) | **3 min** / **8 min** | `resolveAutoRefreshMs` |
 
-Logika wyboru: `resolveAutoRefreshMs(lastGainAt)` w `config/project.ts`.  
-Auto-refresh działa tylko w godzinach `AUTO_REFRESH_HOUR_FROM`…`AUTO_REFRESH_HOUR_TO` (domyślnie 6–18).  
-Countdown w DEV pokazuje czas do kolejnego odświeżenia.
+Auto-refresh / last-change tylko w godzinach `AUTO_REFRESH_HOUR_FROM`…`AUTO_REFRESH_HOUR_TO` (domyślnie 6–18).
 
 ### 0.2 Shine (błysk na zielonym progressie)
 

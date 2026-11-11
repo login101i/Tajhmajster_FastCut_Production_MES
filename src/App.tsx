@@ -22,6 +22,7 @@ import {
   clearStoredToken,
   fetchOrders,
   fetchOrdersToSyncPrc,
+  fetchProductionLastChange,
   getStoredToken,
   syncGroupChildrenPrc,
   syncGroupChildrenPrcBatch,
@@ -40,6 +41,7 @@ import {
   HEADER_SHOW_MOVE_GAP_MS,
   isAutoRefreshHours,
   isChildProductionsGroup,
+  LAST_CHANGE_POLL_MS,
   MIN_PRODUCTION_ORDER_ID,
   ORDERS_GROUP_LIMIT,
   ORDERS_LIST_LIMIT,
@@ -219,7 +221,27 @@ export default function App() {
     Math.ceil(resolveAutoRefreshMs(getLastProductionGainAt()) / 1000),
   );
   const [autoRefreshStopped, setAutoRefreshStopped] = useState(false);
+  /** DEV: status polla last-change (~1.5 s). */
+  const [lastChangeDev, setLastChangeDev] = useState<{
+    phase: 'off' | 'wait' | 'same' | 'change' | 'baseline' | 'off-hours' | 'error';
+    nextAt: number;
+    stampSum: number | null;
+    changedGroupIds: number[];
+    detail: string;
+  }>({
+    phase: 'off',
+    nextAt: 0,
+    stampSum: null,
+    changedGroupIds: [],
+    detail: '',
+  });
+  const [lastChangeCountdownSec, setLastChangeCountdownSec] = useState(0);
   const lastGainAtRef = useRef<number | null>(getLastProductionGainAt());
+  const lastChangeVersionRef = useRef<string | null>(null);
+  /** groupId → "stampSum:qtySum" z ostatniego last-change. */
+  const lastChangeGroupsRef = useRef<Map<number, string>>(new Map());
+  const lastChangeOrdersModRef = useRef<number>(0);
+  const loadInFlightRef = useRef(false);
   const [animPlayToken, setAnimPlayToken] = useState(0);
   const [headerHidden, setHeaderHidden] = useState(false);
   /** Widok 2 → 1 (żółty fokus): header zostaje widoczny, bez chowania/pokazywania */
@@ -418,9 +440,21 @@ export default function App() {
   };
 
   const load = useCallback(
-    async (opts: { writePrc?: boolean } = {}) => {
+    async (
+      opts: {
+        writePrc?: boolean;
+        /** Sync tylko tych matek (szybka ścieżka po last-change). */
+        onlyGroupIds?: number[];
+        /** Bez spinnera całej strony (poll w tle). */
+        silent?: boolean;
+      } = {},
+    ) => {
+      if (loadInFlightRef.current) return;
+      loadInFlightRef.current = true;
       const writePrc = opts.writePrc === true;
-      setLoading(true);
+      const onlyGroupIds = opts.onlyGroupIds;
+      const silent = opts.silent === true;
+      if (!silent) setLoading(true);
       setError('');
       try {
         if (prodTestRef.current) {
@@ -452,15 +486,16 @@ export default function App() {
           applyScanFocusFromGains(rows, tracked);
           setOrders(rows);
         } else {
-          // Zapis % dzieci z checklisty matki — przy ręcznym Odśwież / auto-refresh.
-          // Bez tego matki mają ProductionPrc z OptiCut, a dzieci zostają na 0.00.
-          // Sync dzieci także w widoku board — żeby skan był widoczny od razu
+          // Sync dzieci: albo wskazane grupy (szybko), albo wszystkie (ręczne Odśwież / backup)
           if (writePrc && (viewRef.current === 1 || viewRef.current === 3)) {
-            const preview = await fetchOrdersToSyncPrc({
-              from: SYNC_PRODUCTIONS_FROM_DATE,
-              minId: MIN_PRODUCTION_ORDER_ID,
-            });
-            const groupIds = (preview.groups || []).map((g) => g.groupId);
+            let groupIds = onlyGroupIds;
+            if (!groupIds) {
+              const preview = await fetchOrdersToSyncPrc({
+                from: SYNC_PRODUCTIONS_FROM_DATE,
+                minId: MIN_PRODUCTION_ORDER_ID,
+              });
+              groupIds = (preview.groups || []).map((g) => g.groupId);
+            }
             if (groupIds.length > 0) {
               await syncGroupChildrenPrcBatch(groupIds, {
                 dryRun: false,
@@ -489,7 +524,8 @@ export default function App() {
           setUnlocked(false);
         }
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
+        loadInFlightRef.current = false;
       }
     },
     [t, applyScanFocusFromGains],
@@ -592,7 +628,208 @@ export default function App() {
     void load({ writePrc: shouldWritePrc });
   }, [unlocked, selectedId, load, prodTest, view]);
 
-  // Auto-refresh dopiero po akceptacji popupu
+  // Lekki poll last-change (~1.5 s) → sync TYLKO zmienionych grup (+ fetch listy)
+  useEffect(() => {
+    if (
+      !unlocked ||
+      !filterState4Acked ||
+      selectedId != null ||
+      prodTest ||
+      autoRefreshStopped
+    ) {
+      setLastChangeDev({
+        phase: 'off',
+        nextAt: 0,
+        stampSum: null,
+        changedGroupIds: [],
+        detail: autoRefreshStopped
+          ? 'stop'
+          : selectedId != null
+            ? 'detail'
+            : 'off',
+      });
+      return;
+    }
+
+    let cancelled = false;
+    let nextAt = Date.now() + LAST_CHANGE_POLL_MS;
+    if (devModeRef.current) {
+      setLastChangeDev({
+        phase: 'wait',
+        nextAt,
+        stampSum: null,
+        changedGroupIds: [],
+        detail: isAutoRefreshHours()
+          ? 'poll…'
+          : `DEV poza ${AUTO_REFRESH_HOUR_FROM}–${AUTO_REFRESH_HOUR_TO}`,
+      });
+    }
+
+    const rememberSnapshot = (res: Awaited<ReturnType<typeof fetchProductionLastChange>>) => {
+      lastChangeVersionRef.current = res.version;
+      lastChangeOrdersModRef.current = res.ordersModUnix || 0;
+      const next = new Map<number, string>();
+      for (const g of res.groups || []) {
+        next.set(g.groupId, `${g.stampSum}:${g.qtySum}`);
+      }
+      lastChangeGroupsRef.current = next;
+    };
+
+    type LcPhase =
+      | 'off'
+      | 'wait'
+      | 'same'
+      | 'change'
+      | 'baseline'
+      | 'off-hours'
+      | 'error';
+
+    const reportDev = (
+      phase: LcPhase,
+      res: Awaited<ReturnType<typeof fetchProductionLastChange>> | null,
+      changedGroupIds: number[] = [],
+      detail = '',
+    ) => {
+      if (!devModeRef.current) return;
+      nextAt = Date.now() + LAST_CHANGE_POLL_MS;
+      setLastChangeDev({
+        phase,
+        nextAt,
+        stampSum: res?.stampSum ?? null,
+        changedGroupIds,
+        detail,
+      });
+    };
+
+    const poll = async () => {
+      if (cancelled) return;
+      // Poza 6–18 poll wyłączony — wyjątek: DEV (test skanu o dowolnej godzinie)
+      if (!isAutoRefreshHours() && !devModeRef.current) {
+        reportDev(
+          'off-hours',
+          null,
+          [],
+          `${AUTO_REFRESH_HOUR_FROM}–${AUTO_REFRESH_HOUR_TO}`,
+        );
+        return;
+      }
+      try {
+        const res = await fetchProductionLastChange({
+          minId: MIN_PRODUCTION_ORDER_ID,
+        });
+        if (cancelled || !res?.version) {
+          reportDev('error', res ?? null, [], 'brak version');
+          return;
+        }
+
+        if (lastChangeVersionRef.current == null) {
+          rememberSnapshot(res);
+          reportDev('baseline', res, [], `Σstamp=${res.stampSum}`);
+          return;
+        }
+        if (res.version === lastChangeVersionRef.current) {
+          reportDev('same', res, [], `Σstamp=${res.stampSum}`);
+          return;
+        }
+
+        const prevGroups = lastChangeGroupsRef.current;
+        const changedGroupIds: number[] = [];
+        for (const g of res.groups || []) {
+          const key = `${g.stampSum}:${g.qtySum}`;
+          if (prevGroups.get(g.groupId) !== key) changedGroupIds.push(g.groupId);
+        }
+        // Nowa matka na liście / usunięta — też zsynchronizuj nowe Id
+        for (const g of res.groups || []) {
+          if (!prevGroups.has(g.groupId) && !changedGroupIds.includes(g.groupId)) {
+            changedGroupIds.push(g.groupId);
+          }
+        }
+
+        const ordersModChanged =
+          (res.ordersModUnix || 0) !== lastChangeOrdersModRef.current;
+
+        rememberSnapshot(res);
+
+        const v = viewRef.current;
+        const canWrite = !prodTestRef.current && (v === 1 || v === 3);
+
+        reportDev(
+          'change',
+          res,
+          changedGroupIds,
+          changedGroupIds.length
+            ? `#${changedGroupIds.join(',#')}`
+            : ordersModChanged
+              ? 'DateMod'
+              : 'version',
+        );
+
+        if (changedGroupIds.length > 0 && canWrite) {
+          // Szybka ścieżka: sync 1–N zmienionych matek, nie całej listy grup
+          await load({
+            writePrc: true,
+            onlyGroupIds: changedGroupIds,
+            silent: true,
+          });
+        } else if (ordersModChanged || changedGroupIds.length > 0) {
+          // Sam DateMod / OptiCut — wystarczy odczyt listy
+          await load({ writePrc: false, silent: true });
+        }
+
+        // Po syncu DateMod dzieci się zmienia — zresetuj fingerprint
+        try {
+          const again = await fetchProductionLastChange({
+            minId: MIN_PRODUCTION_ORDER_ID,
+          });
+          if (!cancelled && again?.version) {
+            rememberSnapshot(again);
+            if (devModeRef.current) {
+              nextAt = Date.now() + LAST_CHANGE_POLL_MS;
+              setLastChangeDev((prev) => ({
+                ...prev,
+                nextAt,
+                stampSum: again.stampSum,
+              }));
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      } catch {
+        reportDev('error', null, [], 'network');
+      }
+    };
+
+    void poll();
+    const id = window.setInterval(() => void poll(), LAST_CHANGE_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [
+    unlocked,
+    filterState4Acked,
+    selectedId,
+    load,
+    prodTest,
+    autoRefreshStopped,
+    devMode,
+  ]);
+
+  // DEV: odliczanie do kolejnego ticka last-change
+  useEffect(() => {
+    if (!devMode || !unlocked || prodTest) {
+      setLastChangeCountdownSec(0);
+      return;
+    }
+    const tick = window.setInterval(() => {
+      const left = Math.max(0, lastChangeDev.nextAt - Date.now());
+      setLastChangeCountdownSec(left / 1000);
+    }, 100);
+    return () => window.clearInterval(tick);
+  }, [devMode, unlocked, prodTest, lastChangeDev.nextAt]);
+
+  // Backup pełnego odświeżenia (3–8 min) — last-change obsługuje skany
   useEffect(() => {
     if (
       !unlocked ||
@@ -738,13 +975,52 @@ export default function App() {
               <span
                 className="refresh-countdown"
                 aria-live="polite"
-                title={`Auto-refresh ${AUTO_REFRESH_HOUR_FROM}:00–${AUTO_REFRESH_HOUR_TO}:00 · 5s / 20s / 3min / 8min wg skanów %`}
+                title={`Backup full refresh ${AUTO_REFRESH_HOUR_FROM}:00–${AUTO_REFRESH_HOUR_TO}:00 · 3min / 8min`}
               >
                 {autoRefreshStopped || refreshInSec <= 0
                   ? '—'
                   : refreshInSec >= 60
                     ? `${Math.floor(refreshInSec / 60)}:${String(refreshInSec % 60).padStart(2, '0')}`
                     : `${refreshInSec}s`}
+              </span>
+              <span
+                className={[
+                  'last-change-dev',
+                  lastChangeDev.phase === 'change'
+                    ? 'last-change-dev--hit'
+                    : '',
+                  lastChangeDev.phase === 'same' ||
+                  lastChangeDev.phase === 'baseline'
+                    ? 'last-change-dev--ok'
+                    : '',
+                  lastChangeDev.phase === 'off-hours' ||
+                  lastChangeDev.phase === 'error'
+                    ? 'last-change-dev--warn'
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                title="DEV last-change poll (QuantityStamp fingerprint)"
+              >
+                {`LC ${lastChangeCountdownSec.toFixed(1)}s · ${
+                  lastChangeDev.phase === 'same'
+                    ? 'same'
+                    : lastChangeDev.phase === 'change'
+                      ? `HIT ${lastChangeDev.detail}`
+                      : lastChangeDev.phase === 'baseline'
+                        ? 'baseline'
+                        : lastChangeDev.phase === 'off-hours'
+                          ? `OFF ${lastChangeDev.detail}`
+                          : lastChangeDev.phase === 'error'
+                            ? `ERR ${lastChangeDev.detail}`
+                            : lastChangeDev.phase === 'wait'
+                              ? 'wait'
+                              : lastChangeDev.detail || lastChangeDev.phase
+                }${
+                  lastChangeDev.stampSum != null
+                    ? ` · Σ${lastChangeDev.stampSum}`
+                    : ''
+                }`}
               </span>
             </>
           ) : null}

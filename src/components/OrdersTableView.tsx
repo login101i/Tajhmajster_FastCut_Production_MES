@@ -113,7 +113,7 @@ export function OrdersTableView({
                 <td className="ot-col-pct">
                   <div className="ot-pct">
                     <div className="ot-pct__fill" style={{ width: `${pct}%` }} />
-                    <span>{pct.toFixed(0)}%</span>
+                    <span>{Math.floor(pct + 1e-9)}%</span>
                   </div>
                 </td>
                 <td className="ot-col-led">
