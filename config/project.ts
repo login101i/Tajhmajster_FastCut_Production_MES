@@ -15,7 +15,7 @@
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.2.3';
+export const APP_VERSION = 'V.2.4';
 
 /**
  * Szybki sygnał skanu (Netlify + MySQL):
@@ -62,10 +62,10 @@ export const SHINE_PERIOD_S = 1.5;
 
 /**
  * Po wykryciu przyrostu % (skan formatki): niebieski flash wiersza + scroll.
- * Puls SCAN_FOCUS_PULSE_MS, potem łagodne zanikanie SCAN_FOCUS_FADE_MS.
+ * 0–3 s puls, 3–4 s fade niebieski→biały (SCAN_FOCUS_FADE_MS).
  */
 export const SCAN_FOCUS_PULSE_MS = 3_000;
-export const SCAN_FOCUS_FADE_MS = 2_000;
+export const SCAN_FOCUS_FADE_MS = 1_000;
 
 /**
  * Podzlecenie: przyrost % na pasku (odcinek old→new) ciemniejszym kolorem.

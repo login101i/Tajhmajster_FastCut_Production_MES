@@ -14,8 +14,10 @@ export function PercentBar({
   /** Increment this to force grow animation (e.g. DEV play / scan). */
   playToken = 0,
   isGroup = false,
-  /** Po skanie — mocniej wyróżnij wartość %. */
+  /** Po skanie — mocniej wyróżnij wartość % (bez ramki). */
   emphasize = false,
+  /** Przyrost do pokazania przed % (np. +3) — fade 3→4 s. */
+  gainDelta,
   /** Podzlecenie: początek odcinka przyrostu (ciemniejszy tip). */
   gainFrom,
   /** Podzlecenie: koniec odcinka przyrostu. */
@@ -30,6 +32,7 @@ export function PercentBar({
   /** Ciemniejsza zieleń — matka zlecenia grupowego. */
   isGroup?: boolean;
   emphasize?: boolean;
+  gainDelta?: number;
   gainFrom?: number;
   gainTo?: number;
 }) {
@@ -82,6 +85,10 @@ export function PercentBar({
     gainFrom != null &&
     gainTo != null &&
     gainTo > gainFrom + 0.001;
+  const delta =
+    gainDelta != null && gainDelta > 0
+      ? Math.floor(gainDelta + 1e-9)
+      : 0;
 
   return (
     <div
@@ -108,7 +115,12 @@ export function PercentBar({
           }}
         />
       ) : null}
-      <span className="percent-bar__label">{label}</span>
+      <span className="percent-bar__label">
+        {delta > 0 ? (
+          <span className="percent-bar__delta">+{delta}%</span>
+        ) : null}
+        {label}
+      </span>
     </div>
   );
 }

@@ -1087,7 +1087,19 @@ table.monitor tbody tr.is-focus-order--fading {
 }
 
 table.monitor tbody tr.is-focus-order--scan.is-focus-order--fading {
-  animation: focus-blue-fade-out 2s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: focus-blue-fade-out 1s cubic-bezier(0.33, 0.1, 0.25, 1) forwards;
+}
+
+/* Na czas niebieskiego flasha — bez białego skosu/blur na końcu paska */
+table.monitor tbody tr.is-focus-order--scan .monitor-row__fill:not(.monitor-row__fill--done) {
+  --progress-slant: 0;
+  clip-path: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+table.monitor tbody tr.is-focus-order--scan .monitor-row__fill::after {
+  display: none !important;
 }
 
 @keyframes focus-yellow-pulse {
@@ -1123,20 +1135,16 @@ table.monitor tbody tr.is-focus-order--scan.is-focus-order--fading {
 
 @keyframes focus-blue-fade-out {
   0% {
-    box-shadow: inset 0 0 0 3px #1e88e5, 0 0 0 2px rgba(30, 136, 229, 0.4);
-    background-color: rgba(187, 222, 251, 0.5);
+    box-shadow: inset 0 0 0 3px #1e88e5, 0 0 0 2px rgba(30, 136, 229, 0.35);
+    background-color: rgba(144, 202, 249, 0.75);
   }
-  35% {
-    box-shadow: inset 0 0 0 2px rgba(30, 136, 229, 0.28), 0 0 0 1px rgba(30, 136, 229, 0.18);
-    background-color: rgba(187, 222, 251, 0.28);
-  }
-  70% {
-    box-shadow: inset 0 0 0 1px rgba(30, 136, 229, 0.12), 0 0 0 0 transparent;
-    background-color: rgba(187, 222, 251, 0.1);
+  55% {
+    box-shadow: inset 0 0 0 2px rgba(66, 165, 245, 0.2), 0 0 0 1px rgba(66, 165, 245, 0.12);
+    background-color: rgba(227, 242, 253, 0.85);
   }
   100% {
     box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent;
-    background-color: transparent;
+    background-color: #fff;
   }
 }
 
@@ -1144,13 +1152,37 @@ table.monitor tbody tr.is-focus-order--scan.is-focus-order--fading {
   color: #0d47a1;
   font-weight: 900;
   text-shadow: 0 0 8px rgba(100, 181, 246, 0.9);
-  transform: scale(1.12);
+  transform: scale(1.08);
 }
 
 .percent-bar--emphasize {
-  outline: 2px solid #1e88e5;
-  outline-offset: 1px;
-  border-radius: 4px;
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+.percent-bar__delta {
+  display: inline-block;
+  font-size: 0.58em;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #1565c0;
+  margin-right: 0.28em;
+  vertical-align: middle;
+  /* 0–3 s widoczne, 3–4 s fade (jak flash skanu) */
+  animation: percent-delta-life 4s cubic-bezier(0.33, 0.1, 0.25, 1) forwards;
+}
+
+@keyframes percent-delta-life {
+  0%,
+  75% {
+    opacity: 1;
+    color: #1565c0;
+  }
+  100% {
+    opacity: 0;
+    color: #fff;
+  }
 }
 
 /* Odrzucone (State = 2) */

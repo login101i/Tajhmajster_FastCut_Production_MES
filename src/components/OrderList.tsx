@@ -56,11 +56,15 @@ export function OrderList({
   const [gainSegments, setGainSegments] = useState<Map<number, GainSegment>>(
     () => new Map(),
   );
+  /** Przyrost % do etykiety +N% (jak flash skanu: 3 s + 1 s fade). */
+  const [pctDeltas, setPctDeltas] = useState<Map<number, number>>(() => new Map());
   const prevPctRef = useRef<Map<number, number>>(new Map());
   const focusRef = useRef<HTMLTableRowElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const onFocusHandledRef = useRef(onFocusHandled);
   onFocusHandledRef.current = onFocusHandled;
+  const deltaTimersRef = useRef<number[]>([]);
+  const scanFlashTotalMs = SCAN_FOCUS_PULSE_MS + SCAN_FOCUS_FADE_MS;
 
   const highlightSet = useMemo(
     () => new Set(focusHighlightIds),
@@ -74,7 +78,7 @@ export function OrderList({
 
   const gainTimersRef = useRef<number[]>([]);
 
-  /* Tylko podzlecenia: zapamiętaj przyrost old→new i pokaż ciemniejszy tip 2 s */
+  /* Przyrost %: ciemniejszy tip (dzieci) + etykieta +N% (wszystkie, 4 s) */
   useEffect(() => {
     for (const o of orders) {
       const isChild =
@@ -82,32 +86,54 @@ export function OrderList({
       const pct = parseProductionPercent(o.ProductionPrc) ?? 0;
       const prev = prevPctRef.current.get(o.Id);
 
-      if (isChild && prev != null && pct > prev + 0.001) {
+      if (prev != null && pct > prev + 0.001) {
         const id = o.Id;
         const from = prev;
         const to = pct;
-        setGainSegments((m) => {
+        const deltaInt =
+          Math.floor(to + 1e-9) - Math.floor(from + 1e-9) ||
+          Math.max(1, Math.round(to - from));
+
+        setPctDeltas((m) => {
           const n = new Map(m);
-          n.set(id, { from, to });
+          n.set(id, deltaInt);
           return n;
         });
-        const timer = window.setTimeout(() => {
-          setGainSegments((m) => {
+        const deltaTimer = window.setTimeout(() => {
+          setPctDeltas((m) => {
             const n = new Map(m);
             n.delete(id);
             return n;
           });
-        }, CHILD_GAIN_SEGMENT_MS);
-        gainTimersRef.current.push(timer);
+        }, scanFlashTotalMs);
+        deltaTimersRef.current.push(deltaTimer);
+
+        if (isChild) {
+          setGainSegments((m) => {
+            const n = new Map(m);
+            n.set(id, { from, to });
+            return n;
+          });
+          const timer = window.setTimeout(() => {
+            setGainSegments((m) => {
+              const n = new Map(m);
+              n.delete(id);
+              return n;
+            });
+          }, CHILD_GAIN_SEGMENT_MS);
+          gainTimersRef.current.push(timer);
+        }
       }
       prevPctRef.current.set(o.Id, pct);
     }
-  }, [orders]);
+  }, [orders, scanFlashTotalMs]);
 
   useEffect(
     () => () => {
       for (const t of gainTimersRef.current) window.clearTimeout(t);
       gainTimersRef.current = [];
+      for (const t of deltaTimersRef.current) window.clearTimeout(t);
+      deltaTimersRef.current = [];
     },
     [],
   );
@@ -240,6 +266,9 @@ export function OrderList({
                     ? animPlayToken
                     : 0;
                 const gainSeg = isChild ? gainSegments.get(row.Id) : undefined;
+                const pctDelta = pctDeltas.get(row.Id);
+                const scanHighlight =
+                  focusVariant === 'scan' && highlightSet.has(row.Id);
                 return (
                   <tr
                     key={row.Id}
@@ -329,11 +358,8 @@ export function OrderList({
                         integerOnly
                         isGroup={isGroupMother}
                         playToken={pctPlay}
-                        emphasize={
-                          focusVariant === 'scan' &&
-                          highlightSet.has(row.Id) &&
-                          !focusFading
-                        }
+                        emphasize={scanHighlight && !focusFading}
+                        gainDelta={pctDelta}
                         gainFrom={gainSeg?.from}
                         gainTo={gainSeg?.to}
                       />
