@@ -206,7 +206,6 @@ export default function App() {
   const [autoRefreshStopped, setAutoRefreshStopped] = useState(false);
   const lastGainAtRef = useRef<number | null>(getLastProductionGainAt());
   const [animPlayToken, setAnimPlayToken] = useState(0);
-  const [swapAnimToken, setSwapAnimToken] = useState(0);
   const [headerHidden, setHeaderHidden] = useState(false);
   /** Widok 2 → 1 (żółty fokus): header zostaje widoczny, bez chowania/pokazywania */
   const focusNavLockRef = useRef(false);
@@ -654,17 +653,6 @@ export default function App() {
             >
               {t('playAnim')}
             </button>
-            <button
-              className="btn btn-ghost"
-              type="button"
-              onClick={() => {
-                goView1ForAnim();
-                setSwapAnimToken((n) => n + 1);
-              }}
-              title={t('playSwapAnimHint')}
-            >
-              {t('playSwapAnim')}
-            </button>
           </>
         ) : null}
       </>
@@ -754,7 +742,6 @@ export default function App() {
                   onFocusHandled={clearFocusOrder}
                   animOrderId={ANIM_DEMO_ORDER_ID}
                   animPlayToken={animPlayToken}
-                  swapAnimToken={swapAnimToken}
                 />
               ) : null}
               {!error && !(loading && orders.length === 0) && !prodTest && view === 2 ? (

@@ -84,13 +84,9 @@ export function buildDisplayRows(
     }
   }
 
-  /* Podzlecenia w grupie: malejąco po ProductionPrc (potem Id) */
+  /* Podzlecenia w grupie: stała kolejność Id DESC (bez przetasowań po %) */
   for (const [parentId, list] of children) {
-    list.sort((a, b) => {
-      const d = pctOf(b) - pctOf(a);
-      if (d !== 0) return d;
-      return b.Id - a.Id;
-    });
+    list.sort((a, b) => b.Id - a.Id);
     children.set(parentId, list);
   }
 
@@ -315,7 +311,7 @@ export function arrangeForCssGridColumnMajor<T>(items: T[], cols = 2): T[] {
 export function buildDisplayGroups(
   orders: OrderRow[],
   gainTimes?: Map<number, number>,
-  opts?: { columnMajorChildren?: boolean },
+  _opts?: { columnMajorChildren?: boolean },
 ): Array<Array<OrderRow & { depth: number }>> {
   const rows = buildDisplayRows(orders, gainTimes);
   const groups: Array<Array<OrderRow & { depth: number }>> = [];
@@ -332,16 +328,6 @@ export function buildDisplayGroups(
   }
   if (current.length) groups.push(current);
 
-  const columnMajor = opts?.columnMajorChildren !== false;
-
-  /* Tablet/desktop 2 kol.: ciąg % kolumna po kolumnie. Telefon 1 kol.: czysty sort % ↓ */
-  if (!columnMajor) return groups;
-
-  return groups.map((group) => {
-    if (group.length <= 2) return group;
-    const mother = group[0];
-    const kids = group.slice(1);
-    if (kids.length <= 1) return group;
-    return [mother, ...arrangeForCssGridColumnMajor(kids, 2)];
-  });
+  /* Kolejność dzieci: Id DESC z buildDisplayRows — bez układania pod sort % */
+  return groups;
 }

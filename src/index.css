@@ -860,22 +860,6 @@ table.monitor tbody tr.is-focus-order--fading {
   }
 }
 
-/* FLIP: wolna zamiana góra ↔ dół */
-table.monitor tbody tr.is-flip-moving {
-  z-index: 6;
-  will-change: transform;
-  box-shadow: 0 8px 22px rgba(30, 58, 95, 0.22);
-  position: relative;
-}
-
-table.monitor tbody tr.is-flip-up {
-  z-index: 7;
-}
-
-table.monitor tbody tr.is-flip-down {
-  z-index: 5;
-}
-
 /* Odrzucone (State = 2) */
 table.monitor tbody tr.is-rejected td {
   background: #6b1c28 !important;

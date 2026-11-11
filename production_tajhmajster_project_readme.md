@@ -39,7 +39,7 @@ Helper: `hasRecentProductionGain(orderId, gainTimes)` — klasa `shine` dokłada
 
 ### 0.3 Inne (skrót)
 
-- **Widok 1 grupy:** podzlecenia sortowane malejąco po `ProductionPrc`; w 2 kolumnach układ **kolumna po kolumnie** (lewa góra→dół, potem prawa).
+- **Widok 1 grupy:** podzlecenia sortowane stałe **Id DESC** (bez animacji przetasowań po %).
 - **Progress w wierszu:** prawa krawędź pod kątem **~8°** + fade/blur (`--progress-slant` w CSS).
 - **Header:** chowa się płynnie w **0.5 s** (`.topbar-wrap`).
 - **Widok 2 → Widok 1:** klik kafelka scrolluje wiersz na środek + niebieskie obramowanie ~1 s.
