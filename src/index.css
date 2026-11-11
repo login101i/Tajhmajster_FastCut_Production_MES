@@ -749,11 +749,28 @@ button {
 
 .undo-scan-submit {
   flex: 0 0 auto;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   white-space: nowrap;
+  min-width: 11.5rem;
   padding: 1.5rem 1.9rem !important;
   font-size: 1.85rem !important;
   font-weight: 800 !important;
   border-radius: 0.55rem !important;
+}
+
+.undo-scan-submit--ok {
+  background: #1b5e20 !important;
+  border-color: #1b5e20 !important;
+  color: #fff !important;
+  cursor: default;
+}
+
+.undo-scan-ok-icon {
+  flex: 0 0 auto;
+  display: block;
 }
 
 .undo-scan-error {
@@ -1084,9 +1101,32 @@ table.monitor tbody tr.is-focus-order {
   animation: focus-yellow-pulse 0.7s ease-in-out infinite;
 }
 
-/* Po skanie / przyroście % — niebieski flash 3 s */
+/* Po skanie / przyroście % — niebieski flash 3 s (+ ramka NAD całym wierszem / progressem) */
 table.monitor tbody tr.is-focus-order--scan {
-  animation: focus-blue-pulse 0.7s ease-in-out infinite;
+  z-index: 5;
+  overflow: visible;
+  animation: focus-blue-pulse-bg 0.7s ease-in-out infinite;
+}
+
+/*
+ * Osobna warstwa ramki (ostatnie dziecko tr) — zawsze nad .monitor-row__fill.
+ * Sam inset/box-shadow na tr był zasłaniany kolorem progressu.
+ */
+.monitor-row__scan-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  border-radius: 3px;
+  border: 5px solid #1e88e5;
+  box-shadow:
+    0 0 0 4px rgba(30, 136, 229, 0.5),
+    0 0 26px 10px rgba(66, 165, 245, 0.6);
+  animation: focus-blue-ring 0.7s ease-in-out infinite;
+}
+
+.monitor-row__scan-ring--fading {
+  animation: focus-blue-ring-fade 1s cubic-bezier(0.33, 0.1, 0.25, 1) forwards;
 }
 
 table.monitor tbody tr.is-focus-order--fading {
@@ -1128,29 +1168,59 @@ table.monitor tbody tr.is-focus-order--scan .monitor-row__fill::after {
   }
 }
 
-@keyframes focus-blue-pulse {
+@keyframes focus-blue-pulse-bg {
   0%,
   100% {
-    box-shadow: inset 0 0 0 3px #1e88e5, 0 0 0 2px rgba(30, 136, 229, 0.4);
-    background-color: rgba(187, 222, 251, 0.55);
+    background-color: rgba(187, 222, 251, 0.45);
   }
   50% {
-    box-shadow: inset 0 0 0 4px #42a5f5, 0 0 0 5px rgba(66, 165, 245, 0.55);
-    background-color: rgba(144, 202, 249, 0.75);
+    background-color: rgba(144, 202, 249, 0.55);
+  }
+}
+
+@keyframes focus-blue-ring {
+  0%,
+  100% {
+    border-color: #1e88e5;
+    border-width: 5px;
+    box-shadow:
+      0 0 0 4px rgba(30, 136, 229, 0.45),
+      0 0 22px 8px rgba(66, 165, 245, 0.5);
+  }
+  50% {
+    border-color: #42a5f5;
+    border-width: 7px;
+    box-shadow:
+      0 0 0 7px rgba(66, 165, 245, 0.55),
+      0 0 32px 12px rgba(66, 165, 245, 0.7);
+  }
+}
+
+@keyframes focus-blue-ring-fade {
+  0% {
+    border-color: #1e88e5;
+    border-width: 5px;
+    box-shadow:
+      0 0 0 4px rgba(30, 136, 229, 0.4),
+      0 0 20px 8px rgba(66, 165, 245, 0.45);
+    opacity: 1;
+  }
+  100% {
+    border-color: transparent;
+    border-width: 5px;
+    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
+    opacity: 0;
   }
 }
 
 @keyframes focus-blue-fade-out {
   0% {
-    box-shadow: inset 0 0 0 3px #1e88e5, 0 0 0 2px rgba(30, 136, 229, 0.35);
-    background-color: rgba(144, 202, 249, 0.75);
+    background-color: rgba(144, 202, 249, 0.55);
   }
   55% {
-    box-shadow: inset 0 0 0 2px rgba(66, 165, 245, 0.2), 0 0 0 1px rgba(66, 165, 245, 0.12);
     background-color: rgba(227, 242, 253, 0.85);
   }
   100% {
-    box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent;
     background-color: #fff;
   }
 }
@@ -1169,26 +1239,50 @@ table.monitor tbody tr.is-focus-order--scan .monitor-row__fill::after {
 }
 
 .percent-bar__delta {
+  position: relative;
+  z-index: 5;
   display: inline-block;
-  font-size: 0.58em;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  color: #1565c0;
-  margin-right: 0.28em;
-  vertical-align: middle;
+  font-size: clamp(1.15rem, 3.4vh, 1.7rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #0d47a1;
+  margin-right: 0.35em;
+  vertical-align: baseline;
+  line-height: 1;
+  padding: 0.08em 0.22em;
+  border-radius: 0.25rem;
+  background: rgba(255, 255, 255, 0.88);
+  text-shadow: none;
   /* 0–3 s widoczne, 3–4 s fade (jak flash skanu) */
   animation: percent-delta-life 4s cubic-bezier(0.33, 0.1, 0.25, 1) forwards;
+}
+
+table.monitor td.percent-cell {
+  z-index: 3;
+  overflow: visible;
+}
+
+table.monitor td.order-num-cell {
+  overflow: hidden;
+  max-width: 100%;
+}
+
+table.monitor .percent-bar__label {
+  z-index: 4;
+  gap: 0.2rem;
 }
 
 @keyframes percent-delta-life {
   0%,
   75% {
     opacity: 1;
-    color: #1565c0;
+    color: #0d47a1;
+    background: rgba(255, 255, 255, 0.88);
   }
   100% {
     opacity: 0;
-    color: #fff;
+    color: #0d47a1;
+    background: rgba(255, 255, 255, 0);
   }
 }
 

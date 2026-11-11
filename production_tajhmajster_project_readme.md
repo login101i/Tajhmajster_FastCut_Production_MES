@@ -3,7 +3,7 @@
 > Ten plik skopiuj do drugiego projektu. Opisuje **co** wziąć z OptiCut, **jakie tabele** są potrzebne, **jak liczyć %** (w tym zlecenia grupowe matka/córki) oraz **jak to wystawić na Netlify + `.env`**.
 
 **Źródło w tym repo:** `/production` — tabela kroków, kolumna **5 = `%`** (`ProductionPercent` / `Orders.ProductionPrc`).  
-**Ostatnia aktualizacja:** 2026-11-11
+**Ostatnia aktualizacja:** 2026-11-11 (monitor V.2.7)
 
 ---
 
@@ -16,44 +16,57 @@ Konfiguracja: `config/project.ts`. Detekcja przyrostów %: `src/lib/recentGains.
 | Mechanizm | Interwał | Stała / endpoint |
 |-----------|----------|------------------|
 | **Last-change poll** (fingerprint `QuantityStamp` per matka + `Orders.DateMod`) | **1.5 s** | `LAST_CHANGE_POLL_MS` → `GET /api/production-last-change` |
-| Sync **tylko zmienionych** matek + fetch listy | na zmianę `version` | `onlyGroupIds` + `silent` (nie sync całej listy) |
-| Backup full refresh (wszystkie grupy) | **3 min** / **8 min** | `resolveAutoRefreshMs` |
+| Sync **tylko zmienionych** matek + fetch listy | na zmianę `version` | `onlyGroupIds` + `silent` |
+| Backup full refresh | **3 min** / **8 min** | `resolveAutoRefreshMs` (głównie w oknie **6–18**) |
 
-- **Last-change poll działa zawsze** (nie tylko DEV / nie tylko 6–18) — skan formatki → sync + niebieska animacja.
-- Okno godzin `AUTO_REFRESH_HOUR_FROM`…`AUTO_REFRESH_HOUR_TO` (domyślnie **6–18**) dotyczy głównie **backup** full refresh.
-- DEV w navbarze pokazuje status polla: `LC 1.5s · same|HIT #Id · Σstamp` (tylko podgląd; poll jest i bez DEV).
-- Symulacja skanu w MySQL: `UPDATE ProductionsSocketsCheckLists SET QuantityStamp = … WHERE Id = …` (kolumna **`QuantityStamp`**, nie OwnNumber — checklista go nie ma; identyfikator formatki = **`IdJoin`**).
+- Poll **działa zawsze** w normalnej aplikacji (nie tylko DEV / nie tylko 6–18) — skan → sync → animacja.
+- DEV: podgląd `LC 1.5s · same|HIT #Id · Σstamp` w navbarze.
+- Symulacja skanu: `UPDATE ProductionsSocketsCheckLists SET QuantityStamp=… WHERE Id=…`  
+  Identyfikator formatki = **`IdJoin`** (MES number); checklista **nie ma** OwnNumber.
 
-### 0.2 Cofnij skanowanie formatki (UI)
+### 0.2 Cofnij skanowanie formatki
 
-- Przycisk w headerze (obok Widok 2): **Cofnij skanowanie formatki**.
-- Popup: wpis **IdJoin** → `POST /api/undo-checklist-scan` → `QuantityStamp = QuantityStamp - 1` (min. 0).
-- Lista ~7 ostatnich skanów (`GET` tego samego endpointu + historia sesji): klik wstawia IdJoin; **najnowszy pogrubiony**, kolejne coraz lżejsze.
-- Po cofnięciu: sync `%` dzieci tej grupy (`sync-group-children-prc` / `onlyGroupIds`).
+- Header (obok Widok 2): przycisk **Cofnij skanowanie formatki**.
+- Popup: duży input (**placeholder `MES number`** = `IdJoin`) + przycisk **Cofnij skan**; kursor od razu w inpucie.
+- Hint pod tytułem (mała czcionka): wpisz MES code błędnie zeskanowanej formatki.
+- `POST /api/undo-checklist-scan` → `QuantityStamp − 1`; potem sync `%` grupy (`onlyGroupIds`).
+- Po sukcesie: przycisk na ~2 s → zielony **✓ Cofnięto**, potem z powrotem **Cofnij skan**.
+- Trasa lokalna: `scripts/local-api.mjs` → `/api/undo-checklist-scan` (po dodaniu trasy **zrestartuj** `npm run dev`).
 
-### 0.3 Progress / fokus / fokus po skanie
+### 0.3 Animacja po skanie formatki
 
-| Temat | Zachowanie |
-|--------|------------|
-| Kolory postępu | niebieskie (`FILL_*` w `src/lib/percent.ts`); **100%** = `FILL_DONE` pełna szerokość **bez** skosu/blur (`monitor-row__fill--done`) |
-| Tekst przy 100% | Id / OwnNumber / % **białe** na ciemnoniebieskim |
-| Wyświetlanie % | `Math.floor` (bez zaokrąglania w górę) |
-| Po skanie (przyrost %) | widok 1 + scroll + **niebieski flash 3 s** (`SCAN_FOCUS_PULSE_MS`) + highlight % |
-| Widok 2 → 1 | żółty fokus ~3 s |
-| Shine | tylko świeży przyrost % (`SHINE_RECENT_GAIN_MS` = 10 min), niebieski pasek |
+| Element | Zachowanie |
+|---------|------------|
+| Czas | **3 s** puls niebieski + **1 s** fade niebieski→**biały** (łącznie 4 s) |
+| Ramka | warstwa `.monitor-row__scan-ring` **nad** paskiem `%` (border + mocniejszy shadow dookoła całego wiersza — nie tylko na pustym tle) |
+| Tip paska | na czas flasha bez białego skosu/blur |
+| Przyrost | przed %: **`+N%`** (większa czcionka, jasne tło); fade w 4. sekundzie |
+| % | bez ramki/border przy emphasize |
+| Shine | przy świeżym przyroście przebłysk co **1.5 s** (`SHINE_PERIOD_S`) |
 
-### 0.4 Filtr listy / sync grup
+Stałe: `SCAN_FOCUS_PULSE_MS=3000`, `SCAN_FOCUS_FADE_MS=1000`.
 
-- Lista: `Id >= MIN_PRODUCTION_ORDER_ID` (8700) + **State = 4** + ścieżka `Productions`.
-- Popup startowy (State 4 + ścieżka) — potwierdzenie przed wejściem; prefetch w tle.
-- Grupy: `%` dzieci z checklisty matki (`QuantityStamp/Quantity`); matki OptiCut nie nadpisujemy.
-- Podzlecenia w grupie: sort **Id DESC** (bez flip po %).
+### 0.4 Progress 100% / kolory
 
-### 0.5 Inne (skrót)
+- Kolory niebieskie (`FILL_*`); **100%** = pełny `FILL_DONE` bez skosu/maski (`monitor-row__fill--done`).
+- Przy 100%: Id / OwnNumber / % **białe**.
+- Wyświetlanie %: `Math.floor` (bez zaokrąglania w górę).
 
-- Header: ukrycie po bezczynności **3 min**; pokazanie po ~**1 s** ciągłego ruchu myszy.
-- Spinner na filtrze SL podczas ładowania (pusty tekst = źle wygląda).
-- Endpointy API: `orders`, `order-detail`, `sync-group-children-prc`, `orders-to-sync-prc`, `production-last-change`, **`undo-checklist-scan`**.
+### 0.5 Header UI
+
+- Usunięte logo Lignum Link.
+- **Odśwież** = ikona (spin przy ładowaniu), nie tekst.
+- Usunięty czerwony napis „Produkcja · State 4…”.
+
+### 0.6 Filtr / sync grup
+
+- Lista: `Id >= 8700` + State 4 + ścieżka `Productions`; popup startowy + prefetch.
+- Grupy: `%` dzieci z checklisty matki; matki OptiCut bez nadpisu; dzieci sort **Id DESC**.
+- Header chowa się po **3 min** bezczynności; pokazanie po ~**1 s** ruchu myszy.
+
+### 0.7 Endpointy API
+
+`orders`, `order-detail`, `sync-group-children-prc`, `orders-to-sync-prc`, `production-last-change`, **`undo-checklist-scan`** (GET recent / POST undo).
 
 ---
 

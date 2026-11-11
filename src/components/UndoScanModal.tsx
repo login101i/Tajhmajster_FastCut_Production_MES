@@ -2,6 +2,32 @@ import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n/LanguageContext';
 import { undoChecklistScan } from '../lib/api';
 
+const SUCCESS_HOLD_MS = 2_200;
+
+function CheckIcon() {
+  return (
+    <svg
+      className="undo-scan-ok-icon"
+      viewBox="0 0 24 24"
+      width="28"
+      height="28"
+      aria-hidden
+    >
+      <path
+        fill="currentColor"
+        d="M9.2 16.6 4.8 12.2l1.4-1.4 3 3 8-8 1.4 1.4-9.4 9.4z"
+      />
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        d="M12 3.2a8.8 8.8 0 1 1 0 17.6 8.8 8.8 0 0 1 0-17.6z"
+        opacity="0.35"
+      />
+    </svg>
+  );
+}
+
 export function UndoScanModal({
   open,
   onClose,
@@ -18,20 +44,31 @@ export function UndoScanModal({
 }) {
   const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
+  const successTimerRef = useRef<number | null>(null);
   const [idJoinInput, setIdJoinInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [okMsg, setOkMsg] = useState('');
+  const [justSucceeded, setJustSucceeded] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setError('');
-    setOkMsg('');
+    setJustSucceeded(false);
     setIdJoinInput('');
+    if (successTimerRef.current != null) {
+      window.clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
     const tFocus = window.setTimeout(() => {
       inputRef.current?.focus();
     }, 0);
-    return () => window.clearTimeout(tFocus);
+    return () => {
+      window.clearTimeout(tFocus);
+      if (successTimerRef.current != null) {
+        window.clearTimeout(successTimerRef.current);
+        successTimerRef.current = null;
+      }
+    };
   }, [open]);
 
   if (!open) return null;
@@ -44,17 +81,19 @@ export function UndoScanModal({
     }
     setSubmitting(true);
     setError('');
-    setOkMsg('');
+    setJustSucceeded(false);
     try {
       const res = await undoChecklistScan(idJoin);
-      setOkMsg(
-        t('undoScanSuccess', {
-          idJoin: res.idJoin,
-          from: res.previousStamp,
-          to: res.quantityStamp,
-        }),
-      );
       setIdJoinInput('');
+      setJustSucceeded(true);
+      if (successTimerRef.current != null) {
+        window.clearTimeout(successTimerRef.current);
+      }
+      successTimerRef.current = window.setTimeout(() => {
+        setJustSucceeded(false);
+        successTimerRef.current = null;
+        inputRef.current?.focus();
+      }, SUCCESS_HOLD_MS);
       await onUndone({
         idJoin: res.idJoin,
         idOrder: res.idOrder,
@@ -63,6 +102,7 @@ export function UndoScanModal({
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setJustSucceeded(false);
     } finally {
       setSubmitting(false);
     }
@@ -98,25 +138,40 @@ export function UndoScanModal({
             autoFocus
             className="undo-scan-input"
             value={idJoinInput}
-            onChange={(e) => setIdJoinInput(e.target.value.replace(/[^\d]/g, ''))}
+            onChange={(e) => {
+              setIdJoinInput(e.target.value.replace(/[^\d]/g, ''));
+              if (justSucceeded) setJustSucceeded(false);
+              setError('');
+            }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') void submit();
+              if (e.key === 'Enter' && !justSucceeded) void submit();
             }}
             placeholder="MES number"
-            disabled={submitting}
+            disabled={submitting || justSucceeded}
           />
-          <button
-            type="button"
-            className="btn undo-scan-submit"
-            disabled={submitting || !idJoinInput.trim()}
-            onClick={() => void submit()}
-          >
-            {submitting ? t('undoScanWorking') : t('undoScanConfirm')}
-          </button>
+          {justSucceeded ? (
+            <button
+              type="button"
+              className="btn undo-scan-submit undo-scan-submit--ok"
+              disabled
+              aria-live="polite"
+            >
+              <CheckIcon />
+              <span>{t('undoScanDone')}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn undo-scan-submit"
+              disabled={submitting || !idJoinInput.trim()}
+              onClick={() => void submit()}
+            >
+              {submitting ? t('undoScanWorking') : t('undoScanConfirm')}
+            </button>
+          )}
         </div>
 
         {error ? <p className="undo-scan-error">{error}</p> : null}
-        {okMsg ? <p className="undo-scan-ok">{okMsg}</p> : null}
       </div>
     </div>
   );

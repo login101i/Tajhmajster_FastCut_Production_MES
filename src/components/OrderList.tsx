@@ -365,6 +365,12 @@ export function OrderList({
                       />
                       <span className="sr-only">{pctLabel}</span>
                     </td>
+                    {scanHighlight ? (
+                      <span
+                        className={`monitor-row__scan-ring${focusFading ? ' monitor-row__scan-ring--fading' : ''}`}
+                        aria-hidden
+                      />
+                    ) : null}
                   </tr>
                 );
               })}
