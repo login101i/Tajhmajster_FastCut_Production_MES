@@ -15,15 +15,16 @@
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.2.1';
+export const APP_VERSION = 'V.2.3';
 
 /**
  * Szybki sygnał skanu (Netlify + MySQL):
  * lekki GET /api/production-last-change co LAST_CHANGE_POLL_MS.
+ * Działa zawsze (nie tylko DEV / nie tylko okno godzin) — sync + animacja skanu.
  * Pełny sync tylko gdy `version` się zmieni.
  *
  * Backup pełnego odświeżenia (gdy last-change nic nie złapie):
- * adaptacyjnie 3–8 min wg ostatniego przyrostu %.
+ * adaptacyjnie 3–8 min wg ostatniego przyrostu % (nadal w oknie godzin 6–18).
  */
 /** Poll fingerprint checklisty / DateMod (ms). */
 export const LAST_CHANGE_POLL_MS = 1_500;
@@ -53,18 +54,18 @@ export function resolveAutoRefreshMs(
 
 /**
  * Shine (błysk na pasku %): tylko zlecenia z przyrostem w ostatnich X ms.
- * Animacja CSS: jeden przebieg co ~SHINE_PERIOD_MS.
+ * Animacja CSS: jeden przebieg co SHINE_PERIOD_S (trzeba trzymać w sync z index.css).
  */
 export const SHINE_RECENT_GAIN_MS = 10 * 60_000;
-/** Okres pętli shine (s) — jeden przebłysk co 10 s. */
-export const SHINE_PERIOD_S = 10;
+/** Okres pętli shine (s) — przebłysk co 1.5 s przy aktywnym skanie. */
+export const SHINE_PERIOD_S = 1.5;
 
 /**
  * Po wykryciu przyrostu % (skan formatki): niebieski flash wiersza + scroll.
- * Puls trwa SCAN_FOCUS_PULSE_MS (3 s), potem zanikanie SCAN_FOCUS_FADE_MS.
+ * Puls SCAN_FOCUS_PULSE_MS, potem łagodne zanikanie SCAN_FOCUS_FADE_MS.
  */
 export const SCAN_FOCUS_PULSE_MS = 3_000;
-export const SCAN_FOCUS_FADE_MS = 1_000;
+export const SCAN_FOCUS_FADE_MS = 2_000;
 
 /**
  * Podzlecenie: przyrost % na pasku (odcinek old→new) ciemniejszym kolorem.

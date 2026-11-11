@@ -52,6 +52,8 @@ const ROUTE_MAP = {
   '/.netlify/functions/orders-to-sync-prc': 'orders-to-sync-prc',
   '/api/production-last-change': 'production-last-change',
   '/.netlify/functions/production-last-change': 'production-last-change',
+  '/api/undo-checklist-scan': 'undo-checklist-scan',
+  '/.netlify/functions/undo-checklist-scan': 'undo-checklist-scan',
 };
 
 const handlerCache = new Map();

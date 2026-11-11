@@ -3,7 +3,7 @@
 > Ten plik skopiuj do drugiego projektu. Opisuje **co** wziąć z OptiCut, **jakie tabele** są potrzebne, **jak liczyć %** (w tym zlecenia grupowe matka/córki) oraz **jak to wystawić na Netlify + `.env`**.
 
 **Źródło w tym repo:** `/production` — tabela kroków, kolumna **5 = `%`** (`ProductionPercent` / `Orders.ProductionPrc`).  
-**Ostatnia aktualizacja:** 2026-11-06
+**Ostatnia aktualizacja:** 2026-11-11
 
 ---
 
@@ -11,36 +11,49 @@
 
 Konfiguracja: `config/project.ts`. Detekcja przyrostów %: `src/lib/recentGains.ts`.
 
-### 0.1 Adaptacyjne auto-odświeżanie
-
-Po każdym fetchu lista jest porównywana ze snapshotem `ProductionPrc` (sessionStorage). Gdy **gdziekolwiek** % wzrośnie, zapisywany jest timestamp ostatniego przyrostu (`lastGainAt`).
+### 0.1 Szybki sygnał skanu (last-change) + sync tylko zmienionych
 
 | Mechanizm | Interwał | Stała / endpoint |
 |-----------|----------|------------------|
-| **Last-change poll** (fingerprint per grupa) | **1.5 s** | `LAST_CHANGE_POLL_MS` → `GET /api/production-last-change` |
-| Sync **tylko zmienionych** matek + fetch listy | na zmianę | `onlyGroupIds` (nie sync całej listy) |
+| **Last-change poll** (fingerprint `QuantityStamp` per matka + `Orders.DateMod`) | **1.5 s** | `LAST_CHANGE_POLL_MS` → `GET /api/production-last-change` |
+| Sync **tylko zmienionych** matek + fetch listy | na zmianę `version` | `onlyGroupIds` + `silent` (nie sync całej listy) |
 | Backup full refresh (wszystkie grupy) | **3 min** / **8 min** | `resolveAutoRefreshMs` |
 
-Auto-refresh / last-change tylko w godzinach `AUTO_REFRESH_HOUR_FROM`…`AUTO_REFRESH_HOUR_TO` (domyślnie 6–18).
+- **Last-change poll działa zawsze** (nie tylko DEV / nie tylko 6–18) — skan formatki → sync + niebieska animacja.
+- Okno godzin `AUTO_REFRESH_HOUR_FROM`…`AUTO_REFRESH_HOUR_TO` (domyślnie **6–18**) dotyczy głównie **backup** full refresh.
+- DEV w navbarze pokazuje status polla: `LC 1.5s · same|HIT #Id · Σstamp` (tylko podgląd; poll jest i bez DEV).
+- Symulacja skanu w MySQL: `UPDATE ProductionsSocketsCheckLists SET QuantityStamp = … WHERE Id = …` (kolumna **`QuantityStamp`**, nie OwnNumber — checklista go nie ma; identyfikator formatki = **`IdJoin`**).
 
-### 0.2 Shine (błysk na zielonym progressie)
+### 0.2 Cofnij skanowanie formatki (UI)
 
-| Zasada | Wartość |
-|--------|---------|
-| Kiedy widać | tylko zlecenia/podzlecenia z **świeżym przyrostem %** |
-| Okno „świeżości” | `SHINE_RECENT_GAIN_MS` = **10 min** |
-| Częstotliwość błysku | co **~10 s** (`SHINE_PERIOD_S`) — CSS `animation: shine 10s` |
-| Gdzie | Widok 1 (wiersze `.monitor-row__fill`) oraz Widok 2 / board (`.pb-card__fill`) |
+- Przycisk w headerze (obok Widok 2): **Cofnij skanowanie formatki**.
+- Popup: wpis **IdJoin** → `POST /api/undo-checklist-scan` → `QuantityStamp = QuantityStamp - 1` (min. 0).
+- Lista ~7 ostatnich skanów (`GET` tego samego endpointu + historia sesji): klik wstawia IdJoin; **najnowszy pogrubiony**, kolejne coraz lżejsze.
+- Po cofnięciu: sync `%` dzieci tej grupy (`sync-group-children-prc` / `onlyGroupIds`).
 
-Helper: `hasRecentProductionGain(orderId, gainTimes)` — klasa `shine` dokładana tylko wtedy.
+### 0.3 Progress / fokus / fokus po skanie
 
-### 0.3 Inne (skrót)
+| Temat | Zachowanie |
+|--------|------------|
+| Kolory postępu | niebieskie (`FILL_*` w `src/lib/percent.ts`); **100%** = `FILL_DONE` pełna szerokość **bez** skosu/blur (`monitor-row__fill--done`) |
+| Tekst przy 100% | Id / OwnNumber / % **białe** na ciemnoniebieskim |
+| Wyświetlanie % | `Math.floor` (bez zaokrąglania w górę) |
+| Po skanie (przyrost %) | widok 1 + scroll + **niebieski flash 3 s** (`SCAN_FOCUS_PULSE_MS`) + highlight % |
+| Widok 2 → 1 | żółty fokus ~3 s |
+| Shine | tylko świeży przyrost % (`SHINE_RECENT_GAIN_MS` = 10 min), niebieski pasek |
 
-- **Widok 1 grupy:** podzlecenia sortowane stałe **Id DESC** (bez animacji przetasowań po %).
-- **Progress w wierszu:** prawa krawędź pod kątem **~8°** + fade/blur (`--progress-slant` w CSS).
-- **Header:** chowa się płynnie w **0.5 s** (`.topbar-wrap`).
-- **Widok 2 → Widok 1:** klik kafelka scrolluje wiersz na środek + żółty fokus ~3 s.
-- **Po skanie (przyrost %):** auto widok 1, scroll do zlecenia/podzlecenia, **zielony flash 3 s**, animacja paska %.
+### 0.4 Filtr listy / sync grup
+
+- Lista: `Id >= MIN_PRODUCTION_ORDER_ID` (8700) + **State = 4** + ścieżka `Productions`.
+- Popup startowy (State 4 + ścieżka) — potwierdzenie przed wejściem; prefetch w tle.
+- Grupy: `%` dzieci z checklisty matki (`QuantityStamp/Quantity`); matki OptiCut nie nadpisujemy.
+- Podzlecenia w grupie: sort **Id DESC** (bez flip po %).
+
+### 0.5 Inne (skrót)
+
+- Header: ukrycie po bezczynności **3 min**; pokazanie po ~**1 s** ciągłego ruchu myszy.
+- Spinner na filtrze SL podczas ładowania (pusty tekst = źle wygląda).
+- Endpointy API: `orders`, `order-detail`, `sync-group-children-prc`, `orders-to-sync-prc`, `production-last-change`, **`undo-checklist-scan`**.
 
 ---
 

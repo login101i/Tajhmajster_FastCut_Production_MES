@@ -33,6 +33,22 @@ async function apiGet<T>(path: string): Promise<T> {
   return data as T;
 }
 
+async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+  }
+  return data as T;
+}
+
 export function fetchOrders(
   opts: {
     state?: string;
@@ -155,6 +171,58 @@ export function fetchProductionLastChange(opts: { minId?: number } = {}) {
   return apiGet<ProductionLastChangeResponse>(
     `/api/production-last-change${q ? `?${q}` : ''}`,
   );
+}
+
+export type ChecklistScanItem = {
+  checkListId: number;
+  idOrder: number;
+  idJoin: number;
+  symbol: string;
+  description: string;
+  quantity: number;
+  quantityStamp: number;
+  barCode1: string;
+};
+
+export type RecentChecklistScansResponse = {
+  success: boolean;
+  items: ChecklistScanItem[];
+  checkedAt?: string;
+  error?: string;
+};
+
+export type UndoChecklistScanResponse = {
+  success: boolean;
+  checkListId: number;
+  idOrder: number;
+  idJoin: number;
+  symbol: string;
+  description: string;
+  previousStamp: number;
+  quantityStamp: number;
+  quantity: number;
+  barCode1: string;
+  undoneAt?: string;
+  error?: string;
+};
+
+/** Ostatnie sformatki z QuantityStamp > 0 (przybliżenie po Id checklisty). */
+export function fetchRecentChecklistScans(
+  opts: { limit?: number; minId?: number; groupIds?: number[] } = {},
+) {
+  const qs = new URLSearchParams();
+  if (opts.limit) qs.set('limit', String(opts.limit));
+  if (opts.minId) qs.set('minId', String(opts.minId));
+  if (opts.groupIds?.length) qs.set('groupIds', opts.groupIds.join(','));
+  const q = qs.toString();
+  return apiGet<RecentChecklistScansResponse>(
+    `/api/undo-checklist-scan${q ? `?${q}` : ''}`,
+  );
+}
+
+/** Cofnij skan: QuantityStamp -= 1 dla IdJoin. */
+export function undoChecklistScan(idJoin: number) {
+  return apiPost<UndoChecklistScanResponse>('/api/undo-checklist-scan', { idJoin });
 }
 
 /** Run sync for many groups in small batches to avoid flooding the API. */

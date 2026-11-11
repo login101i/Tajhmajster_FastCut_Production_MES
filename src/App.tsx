@@ -13,6 +13,7 @@ import { OrderList } from './components/OrderList';
 import { OrdersTableView } from './components/OrdersTableView';
 import { OrdersToSyncModal } from './components/OrdersToSyncModal';
 import { ProductionBoardView } from './components/ProductionBoardView';
+import { UndoScanModal } from './components/UndoScanModal';
 import {
   ProductionTestView,
   type SyncResult,
@@ -101,17 +102,10 @@ function TopBar({
             <span />
           </button>
           {nav ? <div className="topbar__phone-nav">{nav}</div> : null}
-          <div className="logo-badge logo-badge--compact" aria-label="LIGNUM LINK">
-            <span className="logo-badge__mark">LL</span>
-          </div>
         </div>
 
         <div className="topbar__desktop">
           <div className="topbar__left">
-            <div className="logo-badge" aria-label="LIGNUM LINK">
-              <span className="logo-badge__mark">LL</span>
-              Lignum Link
-            </div>
             {actions ? <div className="topbar__actions">{actions}</div> : null}
           </div>
           {nav ? <div className="topbar__center">{nav}</div> : null}
@@ -179,6 +173,23 @@ function ViewBoardIcon() {
   );
 }
 
+function RefreshIcon({ spinning }: { spinning?: boolean }) {
+  return (
+    <svg
+      className={`refresh-icon${spinning ? ' refresh-icon--spin' : ''}`}
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      aria-hidden
+    >
+      <path
+        fill="currentColor"
+        d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.1A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+      />
+    </svg>
+  );
+}
+
 export default function App() {
   const { t, locale } = useI18n();
   const needsGate = Boolean(import.meta.env.VITE_REQUIRE_LOGIN !== '0');
@@ -221,6 +232,7 @@ export default function App() {
     Math.ceil(resolveAutoRefreshMs(getLastProductionGainAt()) / 1000),
   );
   const [autoRefreshStopped, setAutoRefreshStopped] = useState(false);
+  const [undoScanOpen, setUndoScanOpen] = useState(false);
   /** DEV: status polla last-change (~1.5 s). */
   const [lastChangeDev, setLastChangeDev] = useState<{
     phase: 'off' | 'wait' | 'same' | 'change' | 'baseline' | 'off-hours' | 'error';
@@ -659,9 +671,7 @@ export default function App() {
         nextAt,
         stampSum: null,
         changedGroupIds: [],
-        detail: isAutoRefreshHours()
-          ? 'poll…'
-          : `DEV poza ${AUTO_REFRESH_HOUR_FROM}–${AUTO_REFRESH_HOUR_TO}`,
+        detail: 'poll…',
       });
     }
 
@@ -703,16 +713,7 @@ export default function App() {
 
     const poll = async () => {
       if (cancelled) return;
-      // Poza 6–18 poll wyłączony — wyjątek: DEV (test skanu o dowolnej godzinie)
-      if (!isAutoRefreshHours() && !devModeRef.current) {
-        reportDev(
-          'off-hours',
-          null,
-          [],
-          `${AUTO_REFRESH_HOUR_FROM}–${AUTO_REFRESH_HOUR_TO}`,
-        );
-        return;
-      }
+      // Last-change zawsze aktywny (nie tylko DEV / nie tylko 6–18) — skan → animacja
       try {
         const res = await fetchProductionLastChange({
           minId: MIN_PRODUCTION_ORDER_ID,
@@ -931,6 +932,14 @@ export default function App() {
           <ViewBoardIcon />
           {t('view2')}
         </button>
+        <button
+          type="button"
+          className="undo-scan-nav-btn"
+          onClick={() => setUndoScanOpen(true)}
+          title={t('undoScanBtn')}
+        >
+          {t('undoScanBtn')}
+        </button>
       </div>
     ) : null;
 
@@ -948,7 +957,7 @@ export default function App() {
         ) : null}
         <span className="refresh-with-countdown">
           <button
-            className="btn"
+            className="btn btn-icon refresh-btn"
             type="button"
             onClick={() =>
               void load({
@@ -956,8 +965,10 @@ export default function App() {
               })
             }
             disabled={loading}
+            aria-label={loading ? t('refreshing') : t('refresh')}
+            title={loading ? t('refreshing') : t('refresh')}
           >
-            {loading ? t('refreshing') : t('refresh')}
+            <RefreshIcon spinning={loading} />
           </button>
           {showDevChrome ? (
             <>
@@ -1025,11 +1036,6 @@ export default function App() {
             </>
           ) : null}
         </span>
-        {!prodTest ? (
-          <span className="filter-state4-header" title={t('filterState4Notice')}>
-            {t('filterState4Header')}
-          </span>
-        ) : null}
         {showOrdersToSync ? (
           <button
             className="btn btn-ghost"
@@ -1167,6 +1173,18 @@ export default function App() {
         groups={syncPreviewGroups}
         onClose={() => setSyncPreviewOpen(false)}
         onUpdateGroup={updateOneGroupPrc}
+      />
+
+      <UndoScanModal
+        open={undoScanOpen}
+        onClose={() => setUndoScanOpen(false)}
+        onUndone={async ({ idOrder }) => {
+          await load({
+            writePrc: Boolean(!prodTestRef.current && (viewRef.current === 1 || viewRef.current === 3)),
+            onlyGroupIds: [idOrder],
+            silent: true,
+          });
+        }}
       />
     </>
   );
