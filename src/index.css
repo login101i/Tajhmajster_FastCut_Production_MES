@@ -3,6 +3,8 @@
   --ll-navy-deep: #152a45;
   --ll-lime: #d4e022;
   --ll-lime-hover: #c5d11a;
+  --ll-btn: #1976d2;
+  --ll-btn-hover: #1565c0;
   --ll-input: #e8f2fb;
   --ll-input-border: #c5d5e4;
   --ll-bg: #e8ecf0;
@@ -462,10 +464,10 @@ button {
 
 .filter-state4-header {
   display: inline-block;
-  max-width: min(22rem, 36vw);
+  max-width: min(34rem, 48vw);
   margin-left: 0.2rem;
   color: #c62828;
-  font-size: clamp(0.85rem, 1.2vw, 1.05rem);
+  font-size: clamp(0.8rem, 1.15vw, 1rem);
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: 0.01em;
@@ -540,7 +542,7 @@ button {
   margin-top: 0.2rem;
   width: 1.15rem;
   height: 1.15rem;
-  accent-color: #8bc34a;
+  accent-color: var(--ll-btn);
   flex-shrink: 0;
 }
 
@@ -620,8 +622,8 @@ button {
 }
 
 .view-switch button.active {
-  background: var(--ll-lime);
-  border-color: var(--ll-lime);
+  background: var(--ll-btn);
+  border-color: var(--ll-btn);
   color: #fff;
 }
 
@@ -673,7 +675,7 @@ button {
   border: 0;
   border-radius: var(--radius);
   padding: 0.65rem 1.2rem;
-  background: var(--ll-lime);
+  background: var(--ll-btn);
   color: #fff;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -681,7 +683,7 @@ button {
 }
 
 .btn:hover {
-  background: var(--ll-lime-hover);
+  background: var(--ll-btn-hover);
 }
 
 .btn:disabled {
@@ -1630,7 +1632,7 @@ table.monitor .percent-bar {
   width: 2.75rem;
   height: 2.75rem;
   border: 3px solid rgba(0, 0, 0, 0.08);
-  border-top-color: #8bc34a;
+  border-top-color: var(--ll-btn);
   border-radius: 50%;
   animation: page-loading-spin 0.75s linear infinite;
 }
@@ -2256,7 +2258,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   position: relative;
   width: 143px;
   height: 126px;
-  border: 2px solid #66bb6a;
+  border: 2px solid #64b5f6;
   border-radius: 6px;
   background: #fff;
   overflow: hidden;
@@ -2269,9 +2271,9 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 .pb-card--mother {
   width: 344px; /* +40% szerokości — OwnNumber */
   height: var(--pb-mother-h);
-  border-color: #43a047;
+  border-color: #1976d2;
   box-shadow:
-    inset 0 0 0 1px rgba(67, 160, 71, 0.25),
+    inset 0 0 0 1px rgba(25, 118, 210, 0.25),
     0 0 0 1px rgba(140, 150, 160, 0.35),
     0 0 14px 3px rgba(120, 130, 140, 0.42);
 }
@@ -2299,7 +2301,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 }
 
 .pb-card--pickup.pb-card--mother {
-  border-color: #43a047;
+  border-color: #1976d2;
 }
 
 .pb-card--pickup .pb-card__body {
@@ -2317,7 +2319,7 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 .pb-card__fill {
   position: absolute;
   inset: 0 auto 0 0;
-  background: #81c784;
+  background: #90caf9;
   transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: left center;
   overflow: hidden;
@@ -2390,10 +2392,10 @@ button.prod-test-btn.btn:not(.btn-ghost) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.78rem;
+  font-size: 0.98rem;
   font-weight: 700;
   color: #1e3a5f;
-  line-height: 1.1;
+  line-height: 1.15;
   text-align: center;
   padding: 0 0.2rem;
 }
@@ -2407,13 +2409,13 @@ button.prod-test-btn.btn:not(.btn-ghost) {
 }
 
 .pb-card--mother .pb-card__own {
-  font-size: 0.85rem;
+  font-size: 1.08rem;
   max-width: 100%;
   padding: 0 0.4rem;
 }
 
 .pb-card--child .pb-card__own {
-  font-size: 0.7rem;
+  font-size: 0.92rem;
 }
 
 .pb-card__pct {

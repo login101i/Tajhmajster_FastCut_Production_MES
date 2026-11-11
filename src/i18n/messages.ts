@@ -54,7 +54,7 @@ const messages = {
     filterState4Checkbox:
       'Rozumiem — State 4 Realizacja + wygenerowana ścieżka produkcyjna',
     filterState4Confirm: 'Potwierdź i wejdź',
-    filterState4Header: 'Produkcja · State 4 + ścieżka (wysłane)',
+    filterState4Header: 'Produkcja · State 4 + ścieżka produkcyjna wygenerowana',
     refreshCountdown: 'odświeżenie za {s} s',
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',
@@ -147,7 +147,7 @@ const messages = {
     filterState4Checkbox:
       'I understand — State 4 Realization + generated production path',
     filterState4Confirm: 'Confirm and continue',
-    filterState4Header: 'Production · State 4 + path (sent)',
+    filterState4Header: 'Production · State 4 + generated production path',
     refreshCountdown: 'refresh in {s} s',
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',
@@ -240,7 +240,7 @@ const messages = {
     filterState4Checkbox:
       'Razumem — State 4 Realizacija + ustvarjena proizvodna pot',
     filterState4Confirm: 'Potrdi in nadaljuj',
-    filterState4Header: 'Proizvodnja · State 4 + pot (poslana)',
+    filterState4Header: 'Proizvodnja · State 4 + ustvarjena proizvodna pot',
     refreshCountdown: 'osvežitev čez {s} s',
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',

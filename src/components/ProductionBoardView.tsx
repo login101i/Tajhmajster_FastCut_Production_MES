@@ -243,7 +243,7 @@ export function ProductionBoardView({
             <svg viewBox="0 0 24 24" width="56" height="56">
               <path
                 fill="none"
-                stroke="#43a047"
+                stroke="#1976d2"
                 strokeWidth="1.6"
                 d="M3 15h11v4H3zM14 16h4l3 3v0H14zM6 19a1.5 1.5 0 1 0 0.01 0M17 19a1.5 1.5 0 1 0 0.01 0M3 15l2-6h8l1 6"
               />
@@ -253,7 +253,7 @@ export function ProductionBoardView({
             <svg viewBox="0 0 24 24" width="40" height="40">
               <path
                 fill="none"
-                stroke="#43a047"
+                stroke="#1976d2"
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
