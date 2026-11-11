@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n/LanguageContext';
 import { undoChecklistScan } from '../lib/api';
 
@@ -17,6 +17,7 @@ export function UndoScanModal({
   }) => Promise<void> | void;
 }) {
   const { t } = useI18n();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [idJoinInput, setIdJoinInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -27,6 +28,10 @@ export function UndoScanModal({
     setError('');
     setOkMsg('');
     setIdJoinInput('');
+    const tFocus = window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(tFocus);
   }, [open]);
 
   if (!open) return null;
@@ -86,6 +91,7 @@ export function UndoScanModal({
 
         <div className="undo-scan-row">
           <input
+            ref={inputRef}
             type="text"
             inputMode="numeric"
             autoComplete="off"

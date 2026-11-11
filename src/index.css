@@ -697,7 +697,7 @@ button {
 }
 
 .undo-scan-modal {
-  width: min(920px, 100%);
+  width: min(1380px, 96vw);
   min-height: 16rem;
   padding: 1.5rem 1.6rem 1.85rem;
 }
@@ -716,7 +716,7 @@ button {
   font-size: 0.82rem;
   font-weight: 500;
   line-height: 1.35;
-  max-width: 36rem;
+  max-width: 54rem;
 }
 
 .undo-scan-row {
@@ -738,6 +738,13 @@ button {
   border-radius: 0.55rem;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+}
+
+.undo-scan-input::placeholder {
+  font-size: 0.55em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  opacity: 0.55;
 }
 
 .undo-scan-submit {

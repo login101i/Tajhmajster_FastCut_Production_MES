@@ -15,7 +15,7 @@
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.2.4';
+export const APP_VERSION = 'V.2.5';
 
 /**
  * Szybki sygnał skanu (Netlify + MySQL):
