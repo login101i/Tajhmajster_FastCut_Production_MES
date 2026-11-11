@@ -36,6 +36,8 @@ import {
   HEADER_HIDE_MS_PHONE,
   HEADER_HIDE_MS_WIDE,
   HEADER_PHONE_MAX_PX,
+  HEADER_SHOW_DELAY_MS,
+  HEADER_SHOW_MOVE_GAP_MS,
   isAutoRefreshHours,
   isChildProductionsGroup,
   MIN_PRODUCTION_ORDER_ID,
@@ -228,25 +230,57 @@ export default function App() {
     return () => document.body.classList.remove('view-board');
   }, [view, prodTest]);
 
-  // Header: chowa się po bezruchu. Scroll w dół NIE pokazuje; scroll w górę / mysz — tak.
+  // Header: chowa się po bezruchu. Mysz odkrywa dopiero po ~1 s ciągłego ruchu.
   useEffect(() => {
-    let timer: number | undefined;
+    let hideTimer: number | undefined;
+    let showTimer: number | undefined;
+    let moveGapTimer: number | undefined;
     let lastScrollY = window.scrollY;
+    const headerHiddenRef = { current: false };
 
     const hideDelay = () =>
       window.matchMedia(`(max-width: ${HEADER_PHONE_MAX_PX}px)`).matches
         ? HEADER_HIDE_MS_PHONE
         : HEADER_HIDE_MS_WIDE;
 
-    const scheduleHide = () => {
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => setHeaderHidden(true), hideDelay());
+    const clearShowPending = () => {
+      if (showTimer) window.clearTimeout(showTimer);
+      if (moveGapTimer) window.clearTimeout(moveGapTimer);
+      showTimer = undefined;
+      moveGapTimer = undefined;
     };
 
-    const showHeader = () => {
+    const scheduleHide = () => {
+      if (hideTimer) window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => {
+        headerHiddenRef.current = true;
+        setHeaderHidden(true);
+      }, hideDelay());
+    };
+
+    const showHeaderNow = () => {
       if (focusNavLockRef.current) return;
+      clearShowPending();
+      headerHiddenRef.current = false;
       setHeaderHidden(false);
       scheduleHide();
+    };
+
+    /** Mysz: pokaż dopiero po HEADER_SHOW_DELAY_MS ciągłego ruchu (nie przy szybkim przelocie). */
+    const onMouseMove = () => {
+      if (focusNavLockRef.current) return;
+      if (!headerHiddenRef.current) {
+        scheduleHide();
+        return;
+      }
+      if (moveGapTimer) window.clearTimeout(moveGapTimer);
+      moveGapTimer = window.setTimeout(clearShowPending, HEADER_SHOW_MOVE_GAP_MS);
+      if (!showTimer) {
+        showTimer = window.setTimeout(() => {
+          showTimer = undefined;
+          showHeaderNow();
+        }, HEADER_SHOW_DELAY_MS);
+      }
     };
 
     const onScroll = () => {
@@ -254,33 +288,34 @@ export default function App() {
       const y = window.scrollY;
       const dy = y - lastScrollY;
       lastScrollY = y;
-      /* Tylko scroll w górę odkrywa ukryty header */
-      if (dy < -4) showHeader();
+      if (dy < -4) showHeaderNow();
     };
 
     const onWheel = (e: WheelEvent) => {
       if (focusNavLockRef.current) return;
-      if (e.deltaY < 0) showHeader();
+      if (e.deltaY < 0) showHeaderNow();
     };
 
-    const activityEvents: Array<keyof WindowEventMap> = [
-      'mousemove',
+    const intentionalShowEvents: Array<keyof WindowEventMap> = [
       'mousedown',
       'touchstart',
       'keydown',
     ];
 
-    showHeader();
-    for (const ev of activityEvents) {
-      window.addEventListener(ev, showHeader, { passive: true });
+    showHeaderNow();
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
+    for (const ev of intentionalShowEvents) {
+      window.addEventListener(ev, showHeaderNow, { passive: true });
     }
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('wheel', onWheel, { passive: true });
 
     return () => {
-      if (timer) window.clearTimeout(timer);
-      for (const ev of activityEvents) {
-        window.removeEventListener(ev, showHeader);
+      if (hideTimer) window.clearTimeout(hideTimer);
+      clearShowPending();
+      window.removeEventListener('mousemove', onMouseMove);
+      for (const ev of intentionalShowEvents) {
+        window.removeEventListener(ev, showHeaderNow);
       }
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('wheel', onWheel);

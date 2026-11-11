@@ -54,10 +54,18 @@ export const SHINE_RECENT_GAIN_MS = 10 * 60_000;
 export const SHINE_PERIOD_S = 10;
 
 /** Ukryj header po braku ruchu: telefon (ms). */
-export const HEADER_HIDE_MS_PHONE = 5_000;
+export const HEADER_HIDE_MS_PHONE = 3 * 60_000;
 
 /** Ukryj header po braku ruchu: tablet / desktop (ms). */
-export const HEADER_HIDE_MS_WIDE = 10_000;
+export const HEADER_HIDE_MS_WIDE = 3 * 60_000;
+
+/**
+ * Pokazuj ukryty header po ruchu myszy dopiero po tylu ms ciągłej aktywności.
+ * Krótki „przelot” przez ekran nie odsłania navbara.
+ */
+export const HEADER_SHOW_DELAY_MS = 1_000;
+/** Max przerwa między eventami mousemove, by uznać ruch za ciągły. */
+export const HEADER_SHOW_MOVE_GAP_MS = 280;
 
 /** Breakpoint „telefon” dla layoutu headera / hide (px). */
 export const HEADER_PHONE_MAX_PX = 800;
