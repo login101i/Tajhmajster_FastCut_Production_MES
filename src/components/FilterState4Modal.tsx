@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { useI18n } from '../i18n/LanguageContext';
 
 export function FilterState4Modal({ onConfirm }: { onConfirm: () => void }) {
@@ -13,6 +14,9 @@ export function FilterState4Modal({ onConfirm }: { onConfirm: () => void }) {
         aria-modal="true"
         aria-labelledby="filter-gate-title"
       >
+        <div className="filter-gate__langs">
+          <LanguageSwitcher />
+        </div>
         <h2 id="filter-gate-title" className="filter-gate__title">
           {t('filterState4Title')}
         </h2>

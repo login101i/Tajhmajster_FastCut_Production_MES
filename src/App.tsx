@@ -507,12 +507,22 @@ export default function App() {
     }
   }, [t]);
 
+  // Prefetch od razu po logowaniu (także gdy popup State 4 jest otwarty)
   useEffect(() => {
-    if (!unlocked || !filterState4Acked || selectedId != null) return;
-    // Sync % dzieci zawsze (bez DEV) — start / zmiana widoku / auto-refresh
+    if (!unlocked || selectedId != null) return;
     const shouldWritePrc = !prodTestRef.current && viewRef.current === 1;
     void load({ writePrc: shouldWritePrc });
-    if (prodTest || autoRefreshStopped) {
+  }, [unlocked, selectedId, load, prodTest, view]);
+
+  // Auto-refresh dopiero po akceptacji popupu
+  useEffect(() => {
+    if (
+      !unlocked ||
+      !filterState4Acked ||
+      selectedId != null ||
+      prodTest ||
+      autoRefreshStopped
+    ) {
       setRefreshInSec(0);
       return;
     }

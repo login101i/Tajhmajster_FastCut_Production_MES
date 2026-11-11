@@ -15,7 +15,7 @@
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.1.8';
+export const APP_VERSION = 'V.1.9';
 
 /**
  * Auto-odświeżanie (adaptacyjne):

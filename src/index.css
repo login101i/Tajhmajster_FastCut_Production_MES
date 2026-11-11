@@ -498,6 +498,12 @@ button {
   gap: 0.85rem;
 }
 
+.filter-gate__langs {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.35rem 0 0.15rem;
+}
+
 .filter-gate__title {
   margin: 0;
   font-size: 1.35rem;

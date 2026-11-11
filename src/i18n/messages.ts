@@ -48,12 +48,13 @@ const messages = {
     refreshing: 'Odświeżam…',
     filterState4Title: 'Ważna informacja',
     filterState4Notice:
-      'Zlecenia poniżej: tylko wysłane na produkcję · State 4 Realizacja',
+      'Realizacja State 4 + wygenerowana ścieżka produkcyjna (Productions)',
     filterState4Hint:
-      'Monitor pokazuje wyłącznie zlecenia z Id ≥ 8700 w statusie Realizacja (State = 4).',
-    filterState4Checkbox: 'Rozumiem — pokazuj tylko State 4 Realizacja',
+      'Na liście są tylko zlecenia Id ≥ 8700, które mają status Realizacja (State = 4) ORAZ zostały wysłane na produkcję (wygenerowana ścieżka produkcyjna / rekord Productions).',
+    filterState4Checkbox:
+      'Rozumiem — State 4 Realizacja + wygenerowana ścieżka produkcyjna',
     filterState4Confirm: 'Potwierdź i wejdź',
-    filterState4Header: 'Produkcja · State 4 (Realizacja)',
+    filterState4Header: 'Produkcja · State 4 + ścieżka (wysłane)',
     refreshCountdown: 'odświeżenie za {s} s',
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',
@@ -140,12 +141,13 @@ const messages = {
     refreshing: 'Refreshing…',
     filterState4Title: 'Important notice',
     filterState4Notice:
-      'Orders below: only sent to production · State 4 Realization',
+      'Realization State 4 + generated production path (Productions)',
     filterState4Hint:
-      'This monitor shows only orders with Id ≥ 8700 in Realization status (State = 4).',
-    filterState4Checkbox: 'I understand — show State 4 Realization only',
+      'The list shows only orders Id ≥ 8700 that have Realization status (State = 4) AND were sent to production (generated production path / Productions row).',
+    filterState4Checkbox:
+      'I understand — State 4 Realization + generated production path',
     filterState4Confirm: 'Confirm and continue',
-    filterState4Header: 'Production · State 4 (Realization)',
+    filterState4Header: 'Production · State 4 + path (sent)',
     refreshCountdown: 'refresh in {s} s',
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',
@@ -232,12 +234,13 @@ const messages = {
     refreshing: 'Osvežujem…',
     filterState4Title: 'Pomembno obvestilo',
     filterState4Notice:
-      'Naročila spodaj: samo poslana v proizvodnjo · State 4 Realizacija',
+      'Realizacija State 4 + ustvarjena proizvodna pot (Productions)',
     filterState4Hint:
-      'Monitor prikazuje samo naročila z Id ≥ 8700 v statusu Realizacija (State = 4).',
-    filterState4Checkbox: 'Razumem — prikaži samo State 4 Realizacija',
+      'Na seznamu so samo naročila Id ≥ 8700 s statusom Realizacija (State = 4) IN poslana v proizvodnjo (ustvarjena proizvodna pot / zapis Productions).',
+    filterState4Checkbox:
+      'Razumem — State 4 Realizacija + ustvarjena proizvodna pot',
     filterState4Confirm: 'Potrdi in nadaljuj',
-    filterState4Header: 'Proizvodnja · State 4 (Realizacija)',
+    filterState4Header: 'Proizvodnja · State 4 + pot (poslana)',
     refreshCountdown: 'osvežitev čez {s} s',
     stopRefresh: 'Stop refresh',
     startRefresh: 'Start refresh',

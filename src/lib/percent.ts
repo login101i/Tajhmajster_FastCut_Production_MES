@@ -1,11 +1,11 @@
-/** Light green progress (matches order-number cell fill). */
-export const FILL_LIGHT = '#c8e6c9';
-export const FILL_MID = '#a5d6a7';
-export const FILL_HIGH = '#81c784';
-/** 100% — ciemniejsza zieleń. */
-export const FILL_DONE = '#2e7d32';
-/** Matka zlecenia grupowego — ciemniejsza zieleń (podzlecenia: zwykła skala). */
-export const FILL_GROUP = '#388e3c';
+/** Light blue progress — podzlecenia / niski %. */
+export const FILL_LIGHT = '#bbdefb';
+export const FILL_MID = '#90caf9';
+export const FILL_HIGH = '#64b5f6';
+/** 100% — ciemniejszy niebieski. */
+export const FILL_DONE = '#1565c0';
+/** Matka zlecenia grupowego — wyraźny niebieski (dzieci: jasny). */
+export const FILL_GROUP = '#1976d2';
 
 export function parseProductionPercent(value: number | string | null | undefined): number | null {
   if (value == null || value === '') return null;
@@ -25,7 +25,7 @@ export function resolveFillColor(
   opts?: { isGroup?: boolean },
 ): string {
   if (percent >= 100) return FILL_DONE;
-  /* Tylko matka grupy — ciemna zieleń; dzieci jak normalne zlecenia */
+  /* Matka grupy — niebieski; podzlecenia / zwykłe — jasnoniebieska skala */
   if (opts?.isGroup) return FILL_GROUP;
   if (percent >= 90) return FILL_HIGH;
   if (percent >= 50) return FILL_MID;
