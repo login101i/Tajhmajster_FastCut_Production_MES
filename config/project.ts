@@ -15,7 +15,7 @@
  */
 
 /** Wersja UI (prawy górny róg topbara). */
-export const APP_VERSION = 'V.2.7';
+export const APP_VERSION = 'V.2.9';
 
 /**
  * Szybki sygnał skanu (Netlify + MySQL):
@@ -105,6 +105,9 @@ export function isAutoRefreshHours(d = new Date()): boolean {
 
 /** Stan zlecenia = Realizacja (na produkcji). */
 export const ORDER_STATE_ON_PRODUCTION = 4;
+
+/** Stan zlecenia = Do odbioru (Widok 2 / pickup). */
+export const ORDER_STATE_READY_FOR_PICKUP = 5;
 
 /** Stan zlecenia = Odrzucone (ciemny bordowy w widoku 1/3). */
 export const ORDER_STATE_REJECTED = 2;

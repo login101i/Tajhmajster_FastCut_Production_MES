@@ -1,6 +1,9 @@
 import type { Handler } from '@netlify/functions';
 import type { RowDataPacket } from 'mysql2';
-import { ORDER_STATE_ON_PRODUCTION } from '../../config/project';
+import {
+  ORDER_STATE_ON_PRODUCTION,
+  ORDER_STATE_READY_FOR_PICKUP,
+} from '../../config/project';
 import { assertMonitorAccess, corsHeaders } from './_lib/auth';
 import { withConnection } from './_lib/db';
 
@@ -81,12 +84,12 @@ export const handler: Handler = async (event) => {
       if (minId > 0 && groupId <= 0) {
         where.push('o.Id >= ?');
         values.push(minId);
-        // Monitor: pokaż gdy Realizacja (4) LUB ProductionPrc > 0 (dowolny stan)
+        // Monitor: Realizacja (4) / Do odbioru (5) / lub ProductionPrc > 0
         where.push(`(
-          o.State = ?
+          o.State IN (?, ?)
           OR CAST(IFNULL(NULLIF(TRIM(CAST(o.ProductionPrc AS CHAR)), ''), '0') AS DECIMAL(12,4)) > 0
         )`);
-        values.push(ORDER_STATE_ON_PRODUCTION);
+        values.push(ORDER_STATE_ON_PRODUCTION, ORDER_STATE_READY_FOR_PICKUP);
       }
 
       // Jawny filtr state=… tylko gdy nie ma minId (np. inne wywołania)

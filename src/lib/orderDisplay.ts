@@ -1,6 +1,7 @@
 import {
   MIN_PRODUCTION_ORDER_ID,
   ORDER_STATE_ON_PRODUCTION,
+  ORDER_STATE_READY_FOR_PICKUP,
   ORDER_STATE_REJECTED,
   ZERO_PCT_IDLE_DROP_MS,
 } from '../../config/project';
@@ -15,6 +16,21 @@ export function orderIdLabel(row: OrderRow): string {
 /** Max % w grupie (matka + dzieci) — matka często ma 0 przy postępie dzieci. */
 export function groupProgressPct(root: OrderRow, kids: OrderRow[] = []): number {
   return Math.max(pctOf(root), 0, ...kids.map(pctOf));
+}
+
+/**
+ * Postęp „ukończenia” grupy do Widoku 2:
+ * min % dzieci (matka OptiCut często 0 — nie blokuje).
+ * Standalone = własne %.
+ */
+export function groupCompletionPct(root: OrderRow, kids: OrderRow[] = []): number {
+  if (kids.length === 0) return pctOf(root);
+  return Math.min(...kids.map(pctOf));
+}
+
+/** State = 5 (Do odbioru). */
+export function isReadyForPickupState(row: OrderRow): boolean {
+  return Number(row.State) === ORDER_STATE_READY_FOR_PICKUP;
 }
 
 export function isDelivered(row: OrderRow): boolean {
@@ -206,19 +222,32 @@ export function isProductionStarted(row: OrderRow): boolean {
   return pctOf(row) > 0;
 }
 
-/** View 3 aktywne: tylko ProductionPrc > 0 i jeszcze nie 100%. */
-export function isBoardInProgress(_root: OrderRow, pct: number): boolean {
-  return pct > 0 && pct < 100;
+/**
+ * Widok 2 — gotowe do pokazania na tablicy:
+ * 100% ukończenia (grupa = wszystkie dzieci) ALBO State = 5 (Do odbioru).
+ * Niepełne (< 100%) zostają w Widoku 1.
+ */
+export function isBoardReady(root: OrderRow, kids: OrderRow[] = []): boolean {
+  if (isDelivered(root)) return false;
+  if (isReadyForPickupState(root)) return true;
+  return groupCompletionPct(root, kids) >= 100;
 }
 
-/** View 3 do odbioru: 100% i jeszcze nie wydane (FlagOut = 0). */
+/** @deprecated Widok 2 nie pokazuje już zleceń w toku — tylko Widok 1. */
+export function isBoardInProgress(_root: OrderRow, _pct: number): boolean {
+  return false;
+}
+
+/** Widok 2 / Do odbioru: 100% lub State 5, jeszcze nie wydane. */
 export function isBoardPickup(root: OrderRow, pct: number): boolean {
-  return pct >= 100 && !isDelivered(root);
+  if (isDelivered(root)) return false;
+  if (isReadyForPickupState(root)) return true;
+  return pct >= 100;
 }
 
 /**
- * View 3 clusters: group mother + children stay together; standalones alone.
- * State=produkcja, Id>=MIN, % > 0; FlagOut=1 (dostarczone) pomijamy.
+ * Widok 2 clusters: tylko ukończone (100% / State 5).
+ * Grupy: matka + dzieci razem; FlagOut=1 pomijamy.
  */
 export function buildBoardClusters(
   orders: OrderRow[],
@@ -257,8 +286,9 @@ export function buildBoardClusters(
     const isGroup = Number(root.IsGroupOrder) === 1;
     const kids = isGroup ? childrenByParent.get(root.Id) || [] : [];
 
+    if (!isBoardReady(root, kids)) continue;
+
     if (!isGroup) {
-      if (!isProductionStarted(root)) continue;
       clusters.push({
         rootId: root.Id,
         root,
@@ -269,19 +299,17 @@ export function buildBoardClusters(
       continue;
     }
 
-    // Widok 3: tylko kafelki z ProductionPrc > 0
     const members = [
-      ...(isProductionStarted(root) ? [root] : []),
-      ...kids.filter(isProductionStarted),
+      root,
+      ...kids.filter((k) => isProductionStarted(k) || pctOf(k) >= 100),
     ];
-    if (members.length === 0) continue;
 
     clusters.push({
       rootId: root.Id,
       root,
       isGroup: true,
       members,
-      pct: groupProgressPct(root, kids),
+      pct: groupCompletionPct(root, kids),
     });
   }
 

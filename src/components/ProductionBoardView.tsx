@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n/LanguageContext';
 import {
   buildBoardClusters,
-  isBoardInProgress,
   isBoardPickup,
   isRejected,
   pctOf,
@@ -228,22 +227,13 @@ export function ProductionBoardView({
 }) {
   const { t } = useI18n();
   const gainTimes = trackProductionGains(orders).gainTimes;
+  // Widok 2: tylko 100% (cała grupa) lub State 5 — w toku zostaje w Widoku 1
   const clusters = buildBoardClusters(orders);
-  const active = clusters.filter((c) => isBoardInProgress(c.root, c.pct));
   const pickup = clusters.filter((c) => isBoardPickup(c.root, c.pct));
 
   return (
     <div className="pb pb--with-pickup">
-      <div className="pb-main">
-        <ClusterGrid
-          clusters={active}
-          onSelect={onSelect}
-          empty={t('boardEmpty')}
-          gainTimes={gainTimes}
-        />
-      </div>
-
-      <aside className="pb-lane pb-lane--pickup">
+      <aside className="pb-lane pb-lane--pickup pb-lane--pickup-full">
         <div className="pb-lane__head pb-lane__head--pickup-row">
           <span className="pb-lane__icon pb-lane__icon--car" aria-hidden>
             <svg viewBox="0 0 24 24" width="56" height="56">
