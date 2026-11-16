@@ -57,8 +57,8 @@ export function resolveAutoRefreshMs(
  * Animacja CSS: jeden przebieg co SHINE_PERIOD_S (trzeba trzymać w sync z index.css).
  */
 export const SHINE_RECENT_GAIN_MS = 10 * 60_000;
-/** Okres pętli shine (s) — przebłysk co 1.5 s przy aktywnym skanie. */
-export const SHINE_PERIOD_S = 1.5;
+/** Okres pętli shine (s) — przebłysk co 3 s przy aktywnym skanie (sync z index.css). */
+export const SHINE_PERIOD_S = 3;
 
 /**
  * Po wykryciu przyrostu % (skan formatki): niebieski flash wiersza + scroll.

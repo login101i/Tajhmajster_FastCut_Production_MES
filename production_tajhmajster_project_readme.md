@@ -42,7 +42,7 @@ Konfiguracja: `config/project.ts`. Detekcja przyrostów %: `src/lib/recentGains.
 | Tip paska | na czas flasha bez białego skosu/blur |
 | Przyrost | przed %: **`+N%`** (większa czcionka, jasne tło); fade w 4. sekundzie |
 | % | bez ramki/border przy emphasize |
-| Shine | przy świeżym przyroście przebłysk co **1.5 s** (`SHINE_PERIOD_S`) |
+| Shine | przy świeżym przyroście przebłysk co **3 s** (`SHINE_PERIOD_S`) |
 
 Stałe: `SCAN_FOCUS_PULSE_MS=3000`, `SCAN_FOCUS_FADE_MS=1000`.
 
